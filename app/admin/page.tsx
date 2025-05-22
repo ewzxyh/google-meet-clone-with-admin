@@ -1,9 +1,9 @@
 import { supabaseServer } from "@/lib/supabase"
-import AdminPanel from "@/components/admin-panel"
+import AdminPanel, { type Meeting } from "@/components/admin-panel"
 
 export default async function AdminPage() {
   // Fetch all meetings with error handling
-  let meetings = []
+  let meetings: Meeting[] = []
 
   if (!supabaseServer) {
     console.warn("Supabase client not initialized. Using empty meetings list.")

@@ -43,21 +43,12 @@ export default async function Home() {
         <div className="flex items-center">
           <div className="flex items-center">
             <Image
-              src="/placeholder.svg?height=32&width=32"
-              alt="Google Meet"
-              width={32}
-              height={32}
+              src="/videozapp.webp"
+              alt="VideoZapp"
+              width={180}
+              height={50}
               className="mr-2"
             />
-            <h1 className="text-xl font-normal text-gray-800">
-              <span className="text-blue-500">G</span>
-              <span className="text-red-500">o</span>
-              <span className="text-yellow-500">o</span>
-              <span className="text-blue-500">g</span>
-              <span className="text-green-500">l</span>
-              <span className="text-red-500">e</span>
-              <span className="ml-2 text-gray-700">Meet</span>
-            </h1>
           </div>
           <div className="ml-auto">
             <Link href="/admin">
