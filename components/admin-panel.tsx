@@ -451,7 +451,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
 
       {/* Filtros e Ações em Massa */}
       <div className="mb-6 p-4 bg-sky-100 border border-sky-500 rounded-lg shadow-md">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4 items-end">
+        <div className="mt-2 px-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4 items-end">
           <div>
             <Label htmlFor="search-meeting" className="text-sky-700 flex items-center">
               <Search className="mr-2 h-4 w-4 text-sky-600" /> Buscar por ID
@@ -642,24 +642,24 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
         {selectedMeetings.length > 0 && (
           <div className="mt-4 p-4 bg-amber-100 border border-amber-500 rounded-md">
             <h3 className="text-lg font-semibold text-amber-800 mb-2">
-              {selectedMeetings.length} reunião(ões) selecionada(s)
+              {selectedMeetings.length} {selectedMeetings.length === 1 ? "reunião selecionada" : "reuniões selecionadas"}
             </h3>
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => openBulkActionDialog("activate")}
-                className="bg-green-500 hover:bg-green-600 text-white border border-green-700"
+                className="bg-green-500 hover:bg-green-600 text-white border border-green-700 w-full sm:w-auto"
               >
                 <Power className="mr-2 h-5 w-5" /> Ativar Selecionadas
               </Button>
               <Button
                 onClick={() => openBulkActionDialog("end")}
-                className="bg-orange-500 hover:bg-orange-600 text-white border border-orange-700"
+                className="bg-orange-500 hover:bg-orange-600 text-white border border-orange-700 w-full sm:w-auto"
               >
                 <PowerOff className="mr-2 h-5 w-5" /> Encerrar Selecionadas
               </Button>
               <Button
                 onClick={() => openBulkActionDialog("delete")}
-                className="bg-red-500 hover:bg-red-600 text-white border border-red-700"
+                className="bg-red-500 hover:bg-red-600 text-white border border-red-700 w-full sm:w-auto"
               >
                 <Trash2 className="mr-2 h-5 w-5" /> Excluir Selecionadas
               </Button>
@@ -765,7 +765,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                           variant="outline"
                           size="sm"
                           onClick={() => endMeeting(meeting.meeting_id)}
-                          className="text-orange-600 border-orange-500 hover:bg-orange-100 hover:text-orange-700"
+                          className="text-orange-600 border-orange-500 hover:bg-orange-100 hover:text-orange-700 w-28"
                           title="Finalizar Reunião"
                         >
                           <PowerOff className="mr-1 h-4 w-4" /> Finalizar
@@ -790,7 +790,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                                 })
                             } 
                           }}
-                          className="text-green-600 border-green-500 hover:bg-green-100 hover:text-green-700"
+                          className="text-green-600 border-green-500 hover:bg-green-100 hover:text-green-700 w-28"
                           title="Ativar Reunião"
                         >
                           <Power className="mr-1 h-4 w-4" /> Ativar
