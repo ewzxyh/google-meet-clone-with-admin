@@ -3,9 +3,12 @@ import JoinMeeting from "@/components/join-meeting"
 import MeetingEnded from "@/components/meeting-ended"
 import { redirect } from "next/navigation"
 
-export default async function MeetingPage({ params }: { params: { meetingId: string } }) {
+export default async function MeetingPage({ params }: { params: Promise<{ meetingId: string }> }) {
+  // Await params before using them
+  const { meetingId } = await params
+
   // Special case for admin route
-  if (params.meetingId === "admin") {
+  if (meetingId === "admin") {
     redirect("/admin")
     return null
   }
@@ -13,7 +16,7 @@ export default async function MeetingPage({ params }: { params: { meetingId: str
   // If Supabase is not available, use mock data for development
   if (!supabaseServer) {
     console.warn("Supabase client not initialized. Using mock data.")
-    return <JoinMeeting meetingId={params.meetingId} videoUrl={mockMeetingData.video_url} />
+    return <JoinMeeting meetingId={meetingId} videoUrl={mockMeetingData.video_url} />
   }
 
   try {
@@ -21,13 +24,13 @@ export default async function MeetingPage({ params }: { params: { meetingId: str
     const { data: meetings, error } = await supabaseServer
       .from("meetings")
       .select("meeting_id, status, video_url, created_at")
-      .eq("meeting_id", params.meetingId)
+      .eq("meeting_id", meetingId)
 
     if (error) {
       console.error("Error fetching meetings:", error)
       return (
         <JoinMeeting
-          meetingId={params.meetingId}
+          meetingId={meetingId}
           videoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
         />
       )
@@ -35,7 +38,7 @@ export default async function MeetingPage({ params }: { params: { meetingId: str
 
     // If no meeting found
     if (!meetings || meetings.length === 0) {
-      console.log("No meeting found with ID:", params.meetingId)
+      console.log("No meeting found with ID:", meetingId)
       return (
         <div className="flex h-screen flex-col items-center justify-center bg-gray-100">
           <div className="text-center">
@@ -53,17 +56,17 @@ export default async function MeetingPage({ params }: { params: { meetingId: str
 
     // If meeting is ended, show the meeting ended page
     if (meeting.status === "ended") {
-      return <MeetingEnded meetingId={params.meetingId} />
+      return <MeetingEnded meetingId={meetingId} />
     }
 
     // If meeting is active, show the join meeting page
-    return <JoinMeeting meetingId={params.meetingId} videoUrl={meeting.video_url} />
+    return <JoinMeeting meetingId={meetingId} videoUrl={meeting.video_url} />
   } catch (error) {
     console.error("Error in meeting page:", error)
     // Provide a fallback experience instead of redirecting
     return (
       <JoinMeeting
-        meetingId={params.meetingId}
+        meetingId={meetingId}
         videoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
       />
     )
