@@ -158,8 +158,17 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
         !customDateOverlayRef.current.contains(event.target as Node) &&
         !dateFilterRef.current.contains(event.target as Node)
       ) {
-        setIsCustomDateOverlayOpen(false)
-        setDateFilter("all") // Volta para "Qualquer data"
+        // Verificar se o clique foi em um popover de calendário
+        const target = event.target as Element
+        const isCalendarPopover = target.closest('[data-radix-popper-content-wrapper]') || 
+                                  target.closest('.rdp') || 
+                                  target.closest('[role="dialog"]') ||
+                                  target.closest('[data-state="open"]')
+        
+        if (!isCalendarPopover) {
+          setIsCustomDateOverlayOpen(false)
+          setDateFilter("all") // Volta para "Qualquer data"
+        }
       }
     }
 
@@ -299,10 +308,8 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
   const filteredMeetings = meetings
     .filter((meeting) => {
       // Status filter
-      if (statusFilter !== "all") {
-        if (meeting.status !== statusFilter) {
-          return false
-        }
+      if (statusFilter !== "all" && meeting.status !== statusFilter) {
+        return false
       }
 
       // Date filter
@@ -311,30 +318,42 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
         const today = new Date()
 
         if (dateFilter === "today") {
-          return meetingDate.toDateString() === today.toDateString()
+          if (meetingDate.toDateString() !== today.toDateString()) {
+            return false
+          }
         } else if (dateFilter === "week") {
           const weekAgo = new Date()
           weekAgo.setDate(today.getDate() - 7)
-          return meetingDate >= weekAgo
+          if (meetingDate < weekAgo) {
+            return false
+          }
         } else if (dateFilter === "month") {
           const monthAgo = new Date()
           monthAgo.setMonth(today.getMonth() - 1)
-          return meetingDate >= monthAgo
+          if (meetingDate < monthAgo) {
+            return false
+          }
         } else if (dateFilter === "custom") {
           if (customDateRange.from && customDateRange.to) {
             // Ajustar 'to' para o final do dia para incluir todas as reuniões do dia selecionado
             const toDate = new Date(customDateRange.to)
             toDate.setHours(23, 59, 59, 999)
-            return meetingDate >= customDateRange.from && meetingDate <= toDate
+            if (!(meetingDate >= customDateRange.from && meetingDate <= toDate)) {
+              return false
+            }
           } else if (customDateRange.from) {
-            return meetingDate >= customDateRange.from
+            if (meetingDate < customDateRange.from) {
+              return false
+            }
           } else if (customDateRange.to) {
             // Ajustar 'to' para o final do dia
             const toDate = new Date(customDateRange.to)
             toDate.setHours(23, 59, 59, 999)
-            return meetingDate <= toDate
+            if (meetingDate > toDate) {
+              return false
+            }
           }
-          return true // Se custom está selecionado mas nenhuma data foi escolhida, não filtra por data
+          // Se custom está selecionado mas nenhuma data foi escolhida, mostra todas as reuniões
         }
       }
 
@@ -832,8 +851,8 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                         Excluir Reuniões Finalizadas
                       </AlertDialogTitle>
                       <AlertDialogDescription className="text-gray-600 pt-2">
-                        Tem certeza que deseja excluir TODAS as reuniões com status "Finalizado"?
-                        Esta ação não pode ser desfeita.
+                        Tem certeza que deseja excluir <strong>TODAS</strong> as reuniões com status <strong>"Finalizado"</strong>?
+                        <br />Esta ação <strong>NÃO</strong> pode ser desfeita.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -1089,7 +1108,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                               Confirmar Exclusão
                             </AlertDialogTitle>
                             <AlertDialogDescription className="text-gray-600 pt-2">
-                              Tem certeza que deseja excluir a reunião <strong className="text-red-600">{meeting.meeting_id}</strong>? Esta ação não pode ser desfeita.
+                              Tem certeza que deseja excluir a reunião <strong className="text-red-600">{meeting.meeting_id}</strong>? <br />Esta ação <strong>NÃO</strong> pode ser desfeita.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -1154,8 +1173,8 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                   bulkActionType === 'delete' ? 'text-red-700' : 'text-sky-700'
                 }`}>{selectedMeetings.length}</strong> {selectedMeetings.length === 1 ? "reunião selecionada" : "reuniões selecionadas"}. 
                 {bulkActionType === "delete" 
-                  ? "Esta ação não pode ser desfeita e excluirá permanentemente as reuniões selecionadas."
-                  : `Tem certeza que deseja ${bulkActionType === "activate" ? "ativar" : "encerrar"} ${selectedMeetings.length === 1 ? "a reunião selecionada" : "as reuniões selecionadas"}?`}
+                  ? " Esta ação não pode ser desfeita e excluirá permanentemente as reuniões selecionadas."
+                  : ` Tem certeza que deseja ${bulkActionType === "activate" ? "ativar" : "encerrar"} ${selectedMeetings.length === 1 ? "a reunião selecionada" : "as reuniões selecionadas"}?`}
               </AlertDialogDescription>
             </AlertDialogHeader>
           </div>
@@ -1186,7 +1205,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
       <Dialog open={isNewMeetingDialogOpen} onOpenChange={setIsNewMeetingDialogOpen}>
         <DialogContent className="bg-sky-100 border-sky-500">
           <DialogHeader className="items-center text-center pt-6 pb-4">
-            <div className="p-3 bg-sky-100 border-2 border-sky-500 rounded-full mb-3 inline-flex">
+            <div className="p-3 bg-sky-200/50 border-2 border-sky-500 rounded-lg mb-3 inline-flex">
               <Check className="h-8 w-8 text-sky-600 stroke-[2.5]" />
             </div>
             <DialogTitle className="text-sky-700 text-2xl font-bold">
@@ -1258,7 +1277,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
               </div>
             </div>
           )}
-          <DialogFooter className="sm:justify-between gap-2 bg-sky-200 border border-sky-500 rounded-lg p-2">
+          <DialogFooter className="sm:justify-between gap-2">
              <Button 
                 variant="outline" // Changed variant to outline for custom styling
                 onClick={() => { if (newMeetingData) deleteMeeting(newMeetingData.meeting_id); setIsNewMeetingDialogOpen(false);}} 
@@ -1280,7 +1299,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
       <Dialog open={isUrlSaveConfirmDialogOpen} onOpenChange={setIsUrlSaveConfirmDialogOpen}>
         <DialogContent className="sm:max-w-md bg-sky-50 border-sky-400 shadow-xl rounded-lg">
           <DialogHeader className="items-center text-center pt-6 pb-4">
-            <div className="p-3 bg-sky-100 border-2 border-sky-500 rounded-full mb-4 inline-flex">
+            <div className="p-3 bg-sky-100 border-2 border-sky-500 rounded-lg mb-4 inline-flex">
               <Check className="h-8 w-8 text-sky-600 stroke-[2.5]" />
             </div>
             <DialogTitle className="text-sky-700 text-2xl font-bold">URL Padrão Salva!</DialogTitle>
