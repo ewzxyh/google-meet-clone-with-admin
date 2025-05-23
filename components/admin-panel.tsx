@@ -1,8 +1,9 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,7 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { 
   Copy, 
@@ -61,12 +62,23 @@ import {
   CalendarIcon,
   Check,
   Ban,
+  SquareCheck,
+  SquareX,
+  Info,
+  ClipboardCheck,
+  X,
 } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export interface Meeting {
   id: number
@@ -90,6 +102,7 @@ const statusTranslations = {
 
 export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [meetings, setMeetings] = useState<Meeting[]>(
     initialMeetings.map(m => ({...m, status: m.status === 'active' ? 'Ativado' : m.status === 'ended' ? 'Finalizado' : m.status }))
   )
@@ -110,6 +123,12 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
   const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>({})
   const [isToDatePickerOpen, setIsToDatePickerOpen] = useState(false)
   const [isUrlSaveConfirmDialogOpen, setIsUrlSaveConfirmDialogOpen] = useState(false)
+  const [copiedMeetingId, setCopiedMeetingId] = useState<string | null>(null);
+  const [isCodeCopied, setIsCodeCopied] = useState(false);
+  const [isUrlCopied, setIsUrlCopied] = useState(false);
+  const dateFilterRef = useRef<HTMLDivElement>(null);
+  const customDateOverlayRef = useRef<HTMLDivElement>(null);
+  const [isCustomDateOverlayOpen, setIsCustomDateOverlayOpen] = useState(false);
 
   // Carregar URL padrão do localStorage ao iniciar
   useEffect(() => {
@@ -119,12 +138,66 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
     }
   }, [])
 
+  // Controlar abertura/fechamento do overlay de data personalizada
+  useEffect(() => {
+    if (dateFilter === "custom") {
+      setIsCustomDateOverlayOpen(true)
+    } else {
+      setIsCustomDateOverlayOpen(false)
+      setCustomDateRange({}) // Limpa o intervalo quando fecha
+    }
+  }, [dateFilter])
+
+  // Event listener para fechar overlay ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isCustomDateOverlayOpen &&
+        customDateOverlayRef.current &&
+        dateFilterRef.current &&
+        !customDateOverlayRef.current.contains(event.target as Node) &&
+        !dateFilterRef.current.contains(event.target as Node)
+      ) {
+        setIsCustomDateOverlayOpen(false)
+        setDateFilter("all") // Volta para "Qualquer data"
+      }
+    }
+
+    if (isCustomDateOverlayOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isCustomDateOverlayOpen])
+
   // Salvar URL padrão no localStorage quando mudar
   const saveDefaultUrl = () => {
-    localStorage.setItem("defaultVideoUrl", defaultVideoUrl)
-    setIsDefaultUrlDialogOpen(false)
-    setIsUrlSaveConfirmDialogOpen(true)
-  }
+    const currentSavedUrl = localStorage.getItem("defaultVideoUrl");
+    if (defaultVideoUrl === currentSavedUrl) {
+      toast({
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-blue-100 border-blue-400 text-blue-500 mr-2 inline-flex items-center justify-center">
+                <Info className="h-5 w-5" />
+              </span>
+              URL Inalterada
+            </div>
+            A URL inserida já é a sua URL padrão.
+          </React.Fragment>
+        ),
+        variant: "default",
+      });
+      setIsDefaultUrlDialogOpen(false);
+      return;
+    }
+
+    localStorage.setItem("defaultVideoUrl", defaultVideoUrl);
+    setIsDefaultUrlDialogOpen(false);
+    setIsUrlSaveConfirmDialogOpen(true);
+  };
 
   // Função para selecionar/desselecionar todas as reuniões visíveis
   const toggleSelectAll = () => {
@@ -185,16 +258,35 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
         errorMessage = `Erro ao ${newLocalStatus === "Ativado" ? "ativar" : "finalizar"} reuniões selecionadas.`
       }
       toast({
-        title: "Ação em massa concluída",
-        description: successMessage,
-      })
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-green-100 border-green-400 text-green-500 mr-2 inline-flex items-center justify-center">
+                <Check className="h-5 w-5" />
+              </span>
+              Ação em massa concluída
+            </div>
+            {successMessage}
+          </React.Fragment>
+        ),
+        variant: "success",
+      });
     } catch (error) {
       console.error(errorMessage, error)
       toast({
-        title: "Erro na ação em massa",
-        description: `${errorMessage} Tente novamente.`,
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              Erro na ação em massa
+            </div>
+            {`${errorMessage} Tente novamente.`}
+          </React.Fragment>
+        ),
         variant: "destructive",
-      })
+      });
       errorOccurred = true
     }
 
@@ -290,20 +382,47 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
     } else if (error) {
       console.error("Erro ao criar reunião:", error)
       toast({
-        title: "Erro ao criar reunião",
-        description: "Ocorreu um erro ao criar a reunião. Tente novamente.",
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              Erro ao criar reunião
+            </div>
+            Ocorreu um erro ao criar a reunião. Tente novamente.
+          </React.Fragment>
+        ),
         variant: "destructive",
-      })
+      });
     }
   }
 
-  const copyMeetingUrl = (meetingId: string) => {
+  const copyMeetingUrl = (meetingId: string, fromDialog: boolean = false) => {
     const url = `${window.location.origin}/${meetingId}`
     navigator.clipboard.writeText(url)
     toast({
-      title: "URL copiada",
-      description: "A URL da reunião foi copiada para a área de transferência.",
-    })
+      description: (
+        <React.Fragment>
+          <div className="flex items-center text-lg font-semibold mb-1">
+            <span className="p-1 rounded-md border bg-green-100 border-green-400 text-green-500 mr-2 inline-flex items-center justify-center">
+              <ClipboardCheck className="h-5 w-5" />
+            </span>
+            URL copiada
+          </div>
+          A URL da reunião foi copiada para a área de transferência.
+        </React.Fragment>
+      ),
+      variant: "success",
+    });
+
+    if (fromDialog) {
+      setIsUrlCopied(true);
+      setTimeout(() => setIsUrlCopied(false), 1000);
+    } else {
+      setCopiedMeetingId(meetingId);
+      setTimeout(() => setCopiedMeetingId(null), 1000);
+    }
   }
 
   const endMeeting = async (meetingId: string) => {
@@ -321,16 +440,35 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
         meetings.map((meeting) => (meeting.meeting_id === meetingId ? { ...meeting, status: "Finalizado" } : meeting)),
       )
       toast({
-        title: "Reunião Finalizada",
-        description: `A reunião ${meetingId} foi finalizada com sucesso.`,
-      })
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-amber-100 border-amber-400 text-amber-600 mr-2 inline-flex items-center justify-center">
+                <PowerOff className="h-5 w-5" />
+              </span>
+              Reunião Finalizada
+            </div>
+            {`A reunião ${meetingId} foi finalizada com sucesso.`}
+          </React.Fragment>
+        ),
+        variant: "warning",
+      });
     } else {
       console.error("Erro ao finalizar reunião:", error)
       toast({
-        title: "Erro ao Finalizar Reunião",
-        description: "Ocorreu um erro ao finalizar a reunião. Tente novamente.",
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              Erro ao Finalizar Reunião
+            </div>
+            Ocorreu um erro ao finalizar a reunião. Tente novamente.
+          </React.Fragment>
+        ),
         variant: "destructive",
-      })
+      });
     }
   }
 
@@ -348,16 +486,35 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
       setMeetings(meetings.filter((meeting) => meeting.meeting_id !== meetingId))
       setIsNewMeetingDialogOpen(false)
       toast({
-        title: "Reunião excluída",
-        description: `A reunião ${meetingId} foi excluída com sucesso.`,
-      })
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
+                <Trash2 className="h-5 w-5" />
+              </span>
+              Reunião excluída
+            </div>
+            {`A reunião ${meetingId} foi excluída com sucesso.`}
+          </React.Fragment>
+        ),
+        variant: "destructive",
+      });
     } else {
       console.error("Erro ao excluir reunião:", error)
       toast({
-        title: "Erro ao excluir reunião",
-        description: "Ocorreu um erro ao excluir a reunião. Tente novamente.",
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              Erro ao excluir reunião
+            </div>
+            Ocorreu um erro ao excluir a reunião. Tente novamente.
+          </React.Fragment>
+        ),
         variant: "destructive",
-      })
+      });
     }
   }
 
@@ -379,16 +536,35 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
         // Filtra localmente usando "Finalizado"
         setMeetings(meetings.filter((meeting) => meeting.status !== "Finalizado"))
         toast({
-          title: "Reuniões finalizadas excluídas",
-          description: "Todas as reuniões finalizadas foram excluídas com sucesso.",
-        })
+          description: (
+            <React.Fragment>
+              <div className="flex items-center text-lg font-semibold mb-1">
+                <span className="p-1 rounded-md border bg-green-100 border-green-400 text-green-500 mr-2 inline-flex items-center justify-center">
+                  <Check className="h-5 w-5" />
+                </span>
+                Reuniões finalizadas excluídas
+              </div>
+              Todas as reuniões finalizadas foram excluídas com sucesso.
+            </React.Fragment>
+          ),
+          variant: "success",
+        });
       } else {
         console.error("Erro ao excluir reuniões finalizadas:", error)
         toast({
-          title: "Erro ao excluir reuniões",
-          description: "Ocorreu um erro ao excluir as reuniões finalizadas. Tente novamente.",
+          description: (
+            <React.Fragment>
+              <div className="flex items-center text-lg font-semibold mb-1">
+                <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5" />
+                </span>
+                Erro ao excluir reuniões
+              </div>
+              Ocorreu um erro ao excluir as reuniões finalizadas. Tente novamente.
+            </React.Fragment>
+          ),
           variant: "destructive",
-        })
+        });
       }
     } finally {
       setIsDeleting(false)
@@ -431,7 +607,11 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
           <div className="space-y-4">
             <div>
               <Label htmlFor="default-video-url" className="text-sky-700">
-                Link do vídeo <span className="ml-2 px-2 py-0.5 text-xs font-normal bg-gray-200 text-gray-700 border border-gray-400 rounded-full">Padrão para todas as reuniões</span>
+                Link do vídeo 
+                <span className="ml-2 px-2 py-0.5 text-xs font-normal bg-gray-200 text-gray-700 border border-gray-400 rounded-full">
+                  <span className="hidden sm:inline">Padrão para todas as reuniões</span>
+                  <span className="sm:hidden">URL Padrão da Reunião</span>
+                </span>
               </Label>
               <Input
                 id="default-video-url"
@@ -451,7 +631,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
 
       {/* Filtros e Ações em Massa */}
       <div className="mb-6 p-4 bg-sky-100 border border-sky-500 rounded-lg shadow-md">
-        <div className="mt-2 px-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4 items-end">
+        <div className="mt-2 px-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4 items-start">
           <div>
             <Label htmlFor="search-meeting" className="text-sky-700 flex items-center">
               <Search className="mr-2 h-4 w-4 text-sky-600" /> Buscar por ID
@@ -484,113 +664,148 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
             <Label htmlFor="date-filter" className="text-sky-700 flex items-center">
               <CalendarDays className="mr-2 h-4 w-4 text-sky-600" /> Filtrar por Data
             </Label>
-            <Select
-              value={dateFilter}
-              onValueChange={(value) => {
-                setDateFilter(value)
-                if (value !== "custom") {
-                  setCustomDateRange({}) // Limpa o intervalo personalizado se outra opção for selecionada
-                }
-              }}
-            >
-              <SelectTrigger className="mt-1 border-sky-400 focus:border-sky-600 focus:ring-sky-600 bg-white text-sky-800">
-                <SelectValue placeholder="Qualquer data" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-sky-500 text-sky-800">
-                <SelectItem value="all" className="hover:bg-sky-200">Qualquer data</SelectItem>
-                <SelectItem value="today" className="hover:bg-sky-200">Hoje</SelectItem>
-                <SelectItem value="week" className="hover:bg-sky-200">Última Semana</SelectItem>
-                <SelectItem value="month" className="hover:bg-sky-200">Último Mês</SelectItem>
-                <SelectItem value="custom" className="hover:bg-sky-200">Personalizado...</SelectItem>
-              </SelectContent>
-            </Select>
-            {dateFilter === "custom" && (
-              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 border border-sky-300 rounded-md bg-sky-50">
-                <div>
-                  <Label className="text-xs text-sky-700">De:</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal mt-1 bg-white border-sky-400 hover:bg-sky-100",
-                          !customDateRange.from && "text-muted-foreground"
-                        )}
+            <div ref={dateFilterRef}>
+              <Select
+                value={dateFilter}
+                onValueChange={(value) => {
+                  setDateFilter(value)
+                  if (value !== "custom") {
+                    setCustomDateRange({}) // Limpa o intervalo personalizado se outra opção for selecionada
+                    setIsCustomDateOverlayOpen(false)
+                  }
+                }}
+                onOpenChange={(open) => {
+                  if (open && isCustomDateOverlayOpen) {
+                    // Quando o dropdown abre, fecha o overlay de data personalizada
+                    setIsCustomDateOverlayOpen(false)
+                  } else if (!open && dateFilter === "custom" && !isCustomDateOverlayOpen) {
+                    // Quando o dropdown fecha e ainda está em "custom", reabre o overlay
+                    setIsCustomDateOverlayOpen(true)
+                  }
+                }}
+              >
+                <SelectTrigger className="mt-1 border-sky-400 focus:border-sky-600 focus:ring-sky-600 bg-white text-sky-800">
+                  <SelectValue placeholder="Qualquer data" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-sky-500 text-sky-800">
+                  <SelectItem value="all" className="hover:bg-sky-200">Qualquer data</SelectItem>
+                  <SelectItem value="today" className="hover:bg-sky-200">Hoje</SelectItem>
+                  <SelectItem value="week" className="hover:bg-sky-200">Última Semana</SelectItem>
+                  <SelectItem value="month" className="hover:bg-sky-200">Último Mês</SelectItem>
+                  <SelectItem value="custom" className="hover:bg-sky-200">Personalizado...</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {isCustomDateOverlayOpen && dateFilterRef.current && createPortal(
+              <div 
+                ref={customDateOverlayRef}
+                className="fixed z-[9999] bg-sky-50 border border-sky-300 rounded-md shadow-xl p-3"
+                style={{
+                  top: dateFilterRef.current.getBoundingClientRect().bottom + window.scrollY + 5,
+                  left: dateFilterRef.current.getBoundingClientRect().left + window.scrollX,
+                  width: dateFilterRef.current.getBoundingClientRect().width,
+                }}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs text-sky-700">De:</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal mt-1 bg-white border-sky-400 hover:bg-sky-100",
+                            !customDateRange.from && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customDateRange.from ? format(customDateRange.from, "dd/MM/yyyy", { locale: ptBR }) : <span>Selec. data</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent 
+                        className="!fixed !z-[9999] w-auto p-0 bg-white border-sky-500 shadow-xl rounded-lg" 
+                        side="bottom" 
+                        align="start" 
+                        sideOffset={5}
+                        style={{ position: 'fixed' }}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {customDateRange.from ? format(customDateRange.from, "dd/MM/yyyy", { locale: ptBR }) : <span>Selec. data</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white border-sky-500" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={customDateRange.from}
-                        onSelect={(date) => {
-                          setCustomDateRange((prev) => ({ ...prev, from: date, to: prev.to && date && prev.to < date ? undefined : prev.to }))
-                          if (date) {
-                            setIsToDatePickerOpen(true)
-                          }
-                        }}
-                        initialFocus
-                        className="text-sky-800 rounded-md border border-sky-300"
-                        modifiers={{
-                          selected_from: customDateRange.from || new Date(0),
-                          selected_to: customDateRange.to || new Date(0),
-                          selected_range: customDateRange.from && customDateRange.to ? { from: customDateRange.from, to: customDateRange.to } : { from: new Date(0), to: new Date(0) }
-                        }}
-                        modifiersClassNames={{
-                          selected_from: "bg-blue-500 text-white hover:bg-blue-600 focus:bg-blue-600 rounded-full",
-                          selected_to: "bg-green-500 text-white hover:bg-green-600 focus:bg-green-600 rounded-full",
-                          selected_range: "bg-sky-100 text-sky-800 rounded-none",
-                          today: "text-orange-500 font-bold"
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label className="text-xs text-sky-700">Até:</Label>
-                  <Popover open={isToDatePickerOpen} onOpenChange={setIsToDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal mt-1 bg-white border-sky-400 hover:bg-sky-100",
-                          !customDateRange.to && "text-muted-foreground"
-                        )}
-                        disabled={!customDateRange.from}
+                        <Calendar
+                          mode="single"
+                          selected={customDateRange.from}
+                          onSelect={(date) => {
+                            setCustomDateRange((prev) => ({ ...prev, from: date, to: prev.to && date && prev.to < date ? undefined : prev.to }))
+                            if (date) {
+                              setIsToDatePickerOpen(true)
+                            }
+                          }}
+                          initialFocus
+                          className="text-sky-800 rounded-md border border-sky-300"
+                          modifiers={{
+                            selected_from: customDateRange.from || new Date(0),
+                            selected_to: customDateRange.to || new Date(0),
+                            selected_range: customDateRange.from && customDateRange.to ? { from: customDateRange.from, to: customDateRange.to } : { from: new Date(0), to: new Date(0) }
+                          }}
+                          modifiersClassNames={{
+                            selected_from: "bg-blue-500 text-white hover:bg-blue-600 focus:bg-blue-600 rounded-full",
+                            selected_to: "bg-green-500 text-white hover:bg-green-600 focus:bg-green-600 rounded-full",
+                            selected_range: "bg-sky-100 text-sky-800 rounded-none",
+                            today: "text-orange-500 font-bold"
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-sky-700">Até:</Label>
+                    <Popover open={isToDatePickerOpen} onOpenChange={setIsToDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal mt-1 bg-white border-sky-400 hover:bg-sky-100",
+                            !customDateRange.to && "text-muted-foreground"
+                          )}
+                          disabled={!customDateRange.from}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customDateRange.to ? format(customDateRange.to, "dd/MM/yyyy", { locale: ptBR }) : <span>Selec. data</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent 
+                        className="!fixed !z-[9999] w-auto p-0 bg-white border-sky-500 shadow-xl rounded-lg" 
+                        side="bottom" 
+                        align="start" 
+                        sideOffset={5}
+                        style={{ position: 'fixed' }}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {customDateRange.to ? format(customDateRange.to, "dd/MM/yyyy", { locale: ptBR }) : <span>Selec. data</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white border-sky-500" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={customDateRange.to}
-                        onSelect={(date) => {
-                          setCustomDateRange((prev) => ({ ...prev, to: date }))
-                          setIsToDatePickerOpen(false)
-                        }}
-                        disabled={(date) => customDateRange.from ? date < customDateRange.from : false}
-                        initialFocus
-                        className="text-sky-800 rounded-md border border-sky-300"
-                        modifiers={{
-                          selected_from: customDateRange.from || new Date(0),
-                          selected_to: customDateRange.to || new Date(0),
-                          selected_range: customDateRange.from && customDateRange.to ? { from: customDateRange.from, to: customDateRange.to } : { from: new Date(0), to: new Date(0) }
-                        }}
-                        modifiersClassNames={{
-                          selected_from: "bg-blue-500 text-white hover:bg-blue-600 focus:bg-blue-600 rounded-full",
-                          selected_to: "bg-green-500 text-white hover:bg-green-600 focus:bg-green-600 rounded-full",
-                          selected_range: "bg-sky-100 text-sky-800 rounded-none",
-                          today: "text-orange-500 font-bold"
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                        <Calendar
+                          mode="single"
+                          selected={customDateRange.to}
+                          onSelect={(date) => {
+                            setCustomDateRange((prev) => ({ ...prev, to: date }))
+                            setIsToDatePickerOpen(false)
+                          }}
+                          disabled={(date) => customDateRange.from ? date < customDateRange.from : false}
+                          initialFocus
+                          className="text-sky-800 rounded-md border border-sky-300"
+                          modifiers={{
+                            selected_from: customDateRange.from || new Date(0),
+                            selected_to: customDateRange.to || new Date(0),
+                            selected_range: customDateRange.from && customDateRange.to ? { from: customDateRange.from, to: customDateRange.to } : { from: new Date(0), to: new Date(0) }
+                          }}
+                          modifiersClassNames={{
+                            selected_from: "bg-blue-500 text-white hover:bg-blue-600 focus:bg-blue-600 rounded-full",
+                            selected_to: "bg-green-500 text-white hover:bg-green-600 focus:bg-green-600 rounded-full",
+                            selected_range: "bg-sky-100 text-sky-800 rounded-none",
+                            today: "text-orange-500 font-bold"
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
 
@@ -601,11 +816,11 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full bg-red-100 text-red-700 border-red-400 hover:bg-red-200 hover:border-red-500"
+                      className="w-full bg-red-100 text-red-700 border-red-400 hover:bg-red-200 hover:border-red-500 hover:text-red-700"
                       disabled={isDeleting}
                       title="Excluir todas as reuniões com status Finalizado"
                     >
-                      <Trash2 className="mr-2 h-4 w-4" /> Excluir Reuniões Finalizadas
+                      <Trash2 className="mr-2 h-4" /> Excluir Reuniões Finalizadas
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent className="bg-white border-red-500">
@@ -630,7 +845,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                         disabled={isDeleting}
                         className="bg-red-600 hover:bg-red-700 border-red-700 text-white flex items-center"
                       >
-                        <Trash2 className="mr-2 h-4 w-4" /> {isDeleting ? "Excluindo..." : "Confirmar Exclusão"}
+                        <Trash2 className="mr-2 h-4" /> {isDeleting ? "Excluindo..." : "Confirmar Exclusão"}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -641,29 +856,44 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
 
         {selectedMeetings.length > 0 && (
           <div className="mt-4 p-4 bg-amber-100 border border-amber-500 rounded-md">
-            <h3 className="text-lg font-semibold text-amber-800 mb-2">
-              {selectedMeetings.length} {selectedMeetings.length === 1 ? "reunião selecionada" : "reuniões selecionadas"}
-            </h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2">
+              <div className="flex items-center">
+                <h3 className="text-lg font-semibold text-amber-800">
+                  {selectedMeetings.length} {selectedMeetings.length === 1 ? "reunião selecionada" : "reuniões selecionadas"}
+                </h3>
+                <Button 
+                  variant="link"
+                  onClick={() => setSelectedMeetings([])} 
+                  className="ml-2 sm:ml-3 px-2.5 py-1 text-xs h-auto rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 hover:text-gray-800 border border-gray-400 focus:ring-1 focus:ring-gray-500"
+                  title="Limpar seleção"
+                >
+                  <XCircle className="h-3.5 w-3.5" /> Limpar seleção
+                </Button>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => openBulkActionDialog("activate")}
-                className="bg-green-500 hover:bg-green-600 text-white border border-green-700 w-full sm:w-auto"
+                className="bg-green-200 hover:bg-green-300 text-green-800 border border-green-600 w-full sm:w-auto"
               >
                 <Power className="mr-2 h-5 w-5" /> Ativar Selecionadas
               </Button>
               <Button
                 onClick={() => openBulkActionDialog("end")}
-                className="bg-orange-500 hover:bg-orange-600 text-white border border-orange-700 w-full sm:w-auto"
+                className="bg-orange-200 hover:bg-orange-300 text-orange-800 border border-orange-600 w-full sm:w-auto"
               >
                 <PowerOff className="mr-2 h-5 w-5" /> Encerrar Selecionadas
               </Button>
               <Button
                 onClick={() => openBulkActionDialog("delete")}
-                className="bg-red-500 hover:bg-red-600 text-white border border-red-700 w-full sm:w-auto"
+                className="bg-red-200 hover:bg-red-300 text-red-800 border border-red-600 w-full sm:w-auto"
               >
                 <Trash2 className="mr-2 h-5 w-5" /> Excluir Selecionadas
               </Button>
             </div>
+            <p className="text-sm text-gray-600 mt-3">
+              A ação escolhida abaixo será aplicada a todas as reuniões marcadas na tabela.
+            </p>
           </div>
         )}
       </div>
@@ -671,9 +901,9 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
       {/* Tabela de Reuniões */}
       <div className="overflow-x-auto bg-white shadow-lg rounded-lg border border-sky-300">
         <Table>
-          <TableHeader className="bg-sky-200">
+          <TableHeader className="bg-sky-100">
             <TableRow className="border-b-sky-400">
-              <TableHead className="w-[50px] text-center">
+              <TableHead className="w-[50px] text-center px-1 py-3 sm:px-2">
                 <Checkbox
                   checked={selectedMeetings.length === filteredMeetings.length && filteredMeetings.length > 0}
                   onCheckedChange={toggleSelectAll}
@@ -681,22 +911,22 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                   className="border-sky-500 data-[state=checked]:bg-sky-500 data-[state=checked]:text-white"
                 />
               </TableHead>
-              <TableHead className="text-sky-800 font-semibold">
+              <TableHead className="text-sky-800 font-semibold px-2 py-3 sm:px-4">
                 <div className="flex items-center">
                   <Hash className="mr-2 h-4 w-4 text-sky-600" /> ID da Reunião
                 </div>
               </TableHead>
-              <TableHead className="text-sky-800 font-semibold">
+              <TableHead className="text-sky-800 font-semibold hidden sm:table-cell px-2 py-3 sm:px-4">
                 <div className="flex items-center">
                   <ToggleRight className="mr-2 h-4 w-4 text-sky-600" /> Status
                 </div>
               </TableHead>
-              <TableHead className="text-sky-800 font-semibold">
+              <TableHead className="text-sky-800 font-semibold px-2 py-3 sm:px-4">
                 <div className="flex items-center">
                   <CalendarPlus className="mr-2 h-4 w-4 text-sky-600" /> Data de Criação
                 </div>
               </TableHead>
-              <TableHead className="text-right text-sky-800 font-semibold pr-6">
+              <TableHead className="text-right text-sky-800 font-semibold px-2 py-3 sm:px-4 sm:pr-6">
                 <div className="flex items-center justify-end">
                   <Settings className="mr-2 h-4 w-4 text-sky-600" /> Ações
                 </div>
@@ -713,7 +943,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
             ) : (
               filteredMeetings.map((meeting) => (
                 <TableRow key={meeting.id} className="border-b-sky-200 hover:bg-sky-50">
-                  <TableCell className="text-center">
+                  <TableCell className="text-center px-1 py-2 sm:px-2">
                     <Checkbox
                       checked={selectedMeetings.includes(meeting.meeting_id)}
                       onCheckedChange={() => toggleSelectMeeting(meeting.meeting_id)}
@@ -721,90 +951,133 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                       className="border-sky-500 data-[state=checked]:bg-sky-500 data-[state=checked]:text-white"
                     />
                   </TableCell>
-                  <TableCell className="font-medium text-sky-700">
+                  <TableCell className="font-medium text-sky-700 px-2 py-2 sm:px-4">
                     <div className="flex items-center">
+                      <div className="sm:hidden mr-2"> {/* Visível apenas em telas pequenas, com margem à direita */}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              {meeting.status === "Ativado" ? (
+                                <div className="w-1 h-3 rounded-sm bg-green-500" /> // Alterado de círculo para linha vertical
+                              ) : (
+                                <div className="w-1 h-3 rounded-sm bg-amber-500" />   // Alterado de círculo para linha vertical
+                              )}
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-gray-800 text-white border-gray-900">
+                              <p>{meeting.status}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+
                       {meeting.meeting_id}
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="ml-2 text-sky-600 hover:text-sky-800 p-1 h-auto"
+                        className={cn("ml-2 text-sky-600 hover:text-sky-800 p-1 h-auto", copiedMeetingId === meeting.meeting_id && "bg-sky-100 ring-1 ring-sky-300")}
                         onClick={() => copyMeetingUrl(meeting.meeting_id)}
-                        title="Copiar URL da reunião"
+                        title={copiedMeetingId === meeting.meeting_id ? "URL Copiada!" : "Copiar URL da reunião"}
                       >
-                        <Copy className="h-4 w-4" />
+                        {copiedMeetingId === meeting.meeting_id ? <ClipboardCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span
-                      className={`px-3 py-1 text-xs font-semibold rounded-full border ${ 
-                        meeting.status === "Ativado"
-                          ? "bg-green-100 text-green-700 border-green-500"
-                          : "bg-red-100 text-red-700 border-red-500"
-                      }`}
-                    >
-                      {meeting.status}
-                    </span>
+                  <TableCell className="hidden sm:table-cell px-2 py-2 sm:px-4">
+                    <div className="flex items-center justify-start">
+                      <span
+                        className={`px-3 py-1 text-xs font-semibold rounded-full border sm:min-w-[80px] sm:text-center ${ 
+                          meeting.status === "Ativado"
+                            ? "bg-green-100 text-green-700 border-green-500"
+                            : "bg-amber-100 text-amber-700 border-amber-500"
+                        }`}
+                      >
+                        {meeting.status}
+                      </span>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-gray-600">
+                  <TableCell className="text-gray-600 px-2 py-2 sm:px-4">
                     {new Date(meeting.created_at).toLocaleDateString("pt-BR")} {new Date(meeting.created_at).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit'})}
                   </TableCell>
-                  <TableCell className="text-right pr-4">
+                  <TableCell className="text-right px-2 py-2 sm:px-4 sm:pr-4">
                     <div className="flex justify-end space-x-2">
                       <Button
                         variant="outline"
-                        size="sm"
+                        className="h-9 w-9 p-0 flex items-center justify-center text-blue-600 border-blue-500 hover:bg-blue-100 hover:text-blue-700 sm:w-auto sm:px-3"
                         onClick={() => router.push(`/${meeting.meeting_id}`)}
-                        className="text-blue-600 border-blue-500 hover:bg-blue-100 hover:text-blue-700"
                         title="Visualizar Reunião"
                       >
-                        <ExternalLink className="mr-1 h-4 w-4" /> Visualizar
+                        <ExternalLink className="h-4 w-4" />
+                        <span className="hidden sm:ml-2 sm:inline">Visualizar</span>
                       </Button>
                       {meeting.status === "Ativado" ? (
                         <Button
                           variant="outline"
-                          size="sm"
+                          className="h-9 w-9 p-0 flex items-center justify-center text-orange-600 border-orange-500 hover:bg-orange-100 hover:text-orange-700 sm:w-28 sm:px-3"
                           onClick={() => endMeeting(meeting.meeting_id)}
-                          className="text-orange-600 border-orange-500 hover:bg-orange-100 hover:text-orange-700 w-28"
                           title="Finalizar Reunião"
                         >
-                          <PowerOff className="mr-1 h-4 w-4" /> Finalizar
+                          <PowerOff className="h-4 w-4" />
+                          <span className="hidden sm:ml-2 sm:inline">Finalizar</span>
                         </Button>
                       ) : (
                          <Button
                           variant="outline"
-                          size="sm"
+                          className="h-9 w-9 p-0 flex items-center justify-center text-green-600 border-green-500 hover:bg-green-100 hover:text-green-700 sm:w-28 sm:px-3"
                           onClick={() => {
                             const supabase = getSupabaseBrowser()
                             if (supabase) {
-                                // Atualiza para "active" no Supabase
                                 supabase.from("meetings").update({ status: "active" }).eq("meeting_id", meeting.meeting_id)
                                 .then(({error}) => {
                                     if (!error) {
-                                        // Atualiza para "Ativado" localmente
                                         setMeetings(meetings.map(m => m.meeting_id === meeting.meeting_id ? {...m, status: 'Ativado'} : m))
-                                        toast({ title: "Reunião Ativada", description: `A reunião ${meeting.meeting_id} foi reativada.`})
+                                        toast({
+                                          description: (
+                                            <React.Fragment>
+                                              <div className="flex items-center text-lg font-semibold mb-1">
+                                                <span className="p-1 rounded-md border bg-green-100 border-green-400 text-green-500 mr-2 inline-flex items-center justify-center">
+                                                  <Check className="h-5 w-5" />
+                                                </span>
+                                                Reunião Ativada
+                                              </div>
+                                              {`A reunião ${meeting.meeting_id} foi reativada.`}
+                                            </React.Fragment>
+                                          ),
+                                          variant: "success",
+                                        });
                                     } else {
-                                        toast({ title: "Erro ao Ativar", description: "Não foi possível reativar a reunião.", variant: "destructive"})
+                                        toast({
+                                          description: (
+                                            <React.Fragment>
+                                              <div className="flex items-center text-lg font-semibold mb-1">
+                                                <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
+                                                  <AlertTriangle className="h-5 w-5" />
+                                                </span>
+                                                Erro ao Ativar
+                                              </div>
+                                              Não foi possível reativar a reunião.
+                                            </React.Fragment>
+                                          ),
+                                          variant: "destructive",
+                                        });
                                     }
                                 })
                             } 
                           }}
-                          className="text-green-600 border-green-500 hover:bg-green-100 hover:text-green-700 w-28"
                           title="Ativar Reunião"
                         >
-                          <Power className="mr-1 h-4 w-4" /> Ativar
+                          <Power className="h-4 w-4" />
+                          <span className="hidden sm:ml-2 sm:inline">Ativar</span>
                         </Button>
                       )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="destructive"
-                            size="sm"
-                            className="text-red-600 bg-transparent border border-red-500 hover:bg-red-100 hover:text-red-700"
+                            className="h-9 w-9 p-0 flex items-center justify-center text-red-600 bg-transparent border border-red-500 hover:bg-red-100 hover:text-red-700 sm:w-auto sm:px-3"
                             title="Excluir Reunião"
                           >
-                            <Trash2 className="mr-1 h-4 w-4" /> Excluir
+                            <Trash2 className="h-4 w-4" />
+                            <span className="hidden sm:ml-2 sm:inline">Excluir</span>
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent className="bg-white border-red-500">
@@ -843,33 +1116,67 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
 
       {/* Diálogo para Ações em Massa */}
       <AlertDialog open={isBulkActionDialogOpen} onOpenChange={setIsBulkActionDialogOpen}>
-        <AlertDialogContent className="bg-white border-sky-500">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-sky-700">
-              Confirmar Ação em Massa: {
-                bulkActionType === "activate" ? "Ativar" :
-                bulkActionType === "end" ? "Encerrar" :
-                bulkActionType === "delete" ? "Excluir" : ""
-              } Reuniões
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-600">
-              Você selecionou <strong className="text-sky-600">{selectedMeetings.length}</strong> reunião(ões). 
-              {bulkActionType === "delete" 
-                ? "Esta ação não pode ser desfeita e excluirá permanentemente as reuniões selecionadas."
-                : `Tem certeza que deseja ${bulkActionType === "activate" ? "ativar" : "encerrar"} as reuniões selecionadas?`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-gray-400 text-gray-700 hover:bg-gray-200">Cancelar</AlertDialogCancel>
+        <AlertDialogContent className={`p-0 rounded-lg overflow-hidden ${ /* Adicionado rounded-lg e overflow-hidden */
+          bulkActionType === "delete" ? "border-red-500" : 
+          bulkActionType === "activate" ? "border-green-500" : 
+          bulkActionType === "end" ? "border-orange-500" : "border-sky-500" 
+        } ${ 
+          bulkActionType === "delete" ? "bg-red-50" :
+          bulkActionType === "activate" ? "bg-green-50" :
+          bulkActionType === "end" ? "bg-orange-50" : "bg-sky-50"
+        }`}>
+          <div className="p-6 pb-4">
+            <AlertDialogHeader className={`pb-0 border-none`}>
+              <AlertDialogTitle className={`flex items-center ${
+                bulkActionType === 'activate' ? 'text-green-800' :
+                bulkActionType === 'end' ? 'text-orange-800' :
+                bulkActionType === 'delete' ? 'text-red-800' : 'text-sky-700'
+              }`}>
+                <span className={`mr-2 p-1.5 rounded-md border ${ 
+                  bulkActionType === 'activate' ? 'bg-green-100 border-green-300 text-green-700' :
+                  bulkActionType === 'end' ? 'bg-orange-100 border-orange-300 text-orange-700' :
+                  bulkActionType === 'delete' ? 'bg-red-100 border-red-300 text-red-700' : 'bg-sky-100 border-sky-300 text-sky-700'
+                }`}>
+                  {bulkActionType === 'activate' && <Power className="h-5 w-5" />}
+                  {bulkActionType === 'end' && <PowerOff className="h-5 w-5" />}
+                  {bulkActionType === 'delete' && <Trash2 className="h-5 w-5" />}
+                </span>
+                Confirmar {
+                  bulkActionType === "activate" ? "Ativação" :
+                  bulkActionType === "end" ? "Encerramento" :
+                  bulkActionType === "delete" ? "Exclusão" : ""
+                } de Reuniões
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-700 pt-3">
+                Você selecionou <strong className={`${ 
+                  bulkActionType === 'activate' ? 'text-green-700' :
+                  bulkActionType === 'end' ? 'text-orange-700' :
+                  bulkActionType === 'delete' ? 'text-red-700' : 'text-sky-700'
+                }`}>{selectedMeetings.length}</strong> {selectedMeetings.length === 1 ? "reunião selecionada" : "reuniões selecionadas"}. 
+                {bulkActionType === "delete" 
+                  ? "Esta ação não pode ser desfeita e excluirá permanentemente as reuniões selecionadas."
+                  : `Tem certeza que deseja ${bulkActionType === "activate" ? "ativar" : "encerrar"} ${selectedMeetings.length === 1 ? "a reunião selecionada" : "as reuniões selecionadas"}?`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+          <AlertDialogFooter className="px-6 py-4 bg-slate-50 border-t rounded-b-lg"> {/* Alterado para bg-slate-50 e adicionado rounded-b-lg */}
+            <AlertDialogCancel className="border-gray-400 text-gray-700 hover:bg-gray-100 flex items-center">
+              <Ban className="mr-2 h-4 w-4" /> Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkAction}
-              className={`${ 
-                bulkActionType === "delete" ? "bg-red-600 hover:bg-red-700 border-red-700" :
-                bulkActionType === "activate" ? "bg-green-600 hover:bg-green-700 border-green-700" :
-                "bg-orange-600 hover:bg-orange-700 border-orange-700"
-              } text-white`}
+              className={`flex items-center ${ /* Adicionado flex items-center */
+                bulkActionType === "delete" ? "bg-red-200 hover:bg-red-300 text-red-800 border border-red-600" :
+                bulkActionType === "activate" ? "bg-green-200 hover:bg-green-300 text-green-800 border border-green-600" :
+                "bg-orange-200 hover:bg-orange-300 text-orange-800 border border-orange-600"
+              }`}
             >
-              Confirmar {bulkActionType === "activate" ? "Ativação" : bulkActionType === "end" ? "Encerramento" : "Exclusão"}
+              {bulkActionType === 'activate' && <Power className="mr-2 h-4 w-4" />}
+              {bulkActionType === 'end' && <PowerOff className="mr-2 h-4 w-4" />}
+              {bulkActionType === 'delete' && <Trash2 className="mr-2 h-4 w-4" />}
+              Confirmar {bulkActionType === "activate" ? "Ativação" :
+                         bulkActionType === "end" ? "Encerramento" :
+                         bulkActionType === "delete" ? "Exclusão" : "Ação"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -877,20 +1184,20 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
 
       {/* Diálogo para nova reunião criada */}
       <Dialog open={isNewMeetingDialogOpen} onOpenChange={setIsNewMeetingDialogOpen}>
-        <DialogContent className="bg-white border-sky-500">
-          <DialogHeader>
-            <DialogTitle className="text-sky-700 flex items-center">
-              <span className="mr-2 p-1.5 bg-green-100 border border-green-300 rounded-md">
-                <Check className="h-5 w-5 text-green-600" /> 
-              </span>
+        <DialogContent className="bg-sky-100 border-sky-500">
+          <DialogHeader className="items-center text-center pt-6 pb-4">
+            <div className="p-3 bg-sky-100 border-2 border-sky-500 rounded-full mb-3 inline-flex">
+              <Check className="h-8 w-8 text-sky-600 stroke-[2.5]" />
+            </div>
+            <DialogTitle className="text-sky-700 text-2xl font-bold">
                Reunião Criada com Sucesso
             </DialogTitle>
-            <DialogDescription className="text-gray-600 pt-2">
+            <DialogDescription className="text-center text-gray-600 px-6 py-2 text-sm">
               A reunião foi criada. Use as informações abaixo para acessar ou compartilhar.
             </DialogDescription>
           </DialogHeader>
           {newMeetingData && (
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-4 py-4 px-6 bg-sky-200 border border-sky-500 rounded-lg">
               <div className="grid gap-2">
                 <Label className="text-sky-700">Código da Reunião</Label>
                 <div className="flex items-center gap-2">
@@ -898,10 +1205,30 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigator.clipboard.writeText(newMeetingData.meeting_id)}
-                    className="text-sky-600 border-sky-500 hover:bg-sky-100 hover:text-sky-700"
+                    onClick={() => {
+                      if (!newMeetingData) return;
+                      navigator.clipboard.writeText(newMeetingData.meeting_id);
+                      toast({
+                        description: (
+                          <React.Fragment>
+                            <div className="flex items-center text-lg font-semibold mb-1">
+                              <span className="p-1 rounded-md border bg-green-100 border-green-400 text-green-500 mr-2 inline-flex items-center justify-center">
+                                <ClipboardCheck className="h-5 w-5" />
+                              </span>
+                              Código Copiado
+                            </div>
+                            O código da reunião foi copiado para a área de transferência.
+                          </React.Fragment>
+                        ),
+                        variant: "success",
+                      });
+                      setIsCodeCopied(true);
+                      setTimeout(() => setIsCodeCopied(false), 1000);
+                    }}
+                    className={cn("text-sky-600 border-sky-500 hover:bg-sky-100 hover:text-sky-700", isCodeCopied && "bg-sky-100 ring-1 ring-sky-300")}
                   >
-                    <Copy className="mr-1 h-4 w-4" /> Copiar Código
+                    {isCodeCopied ? <ClipboardCheck className="mr-1 h-4 w-4 text-green-500" /> : <Copy className="mr-1 h-4 w-4" />}
+                    {isCodeCopied ? "Copiado!" : "Copiar Código"}
                   </Button>
                 </div>
               </div>
@@ -909,8 +1236,17 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                 <Label className="text-sky-700">URL da Reunião</Label>
                 <div className="flex items-center gap-2">
                   <Input value={`${typeof window !== "undefined" ? window.location.origin : ""}/${newMeetingData.meeting_id}`} readOnly className="bg-sky-50 border-sky-300" />
-                  <Button variant="outline" size="sm" onClick={() => copyMeetingUrl(newMeetingData.meeting_id)} className="text-sky-600 border-sky-500 hover:bg-sky-100 hover:text-sky-700">
-                    <Copy className="mr-1 h-4 w-4" /> Copiar URL
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      if (!newMeetingData) return;
+                      copyMeetingUrl(newMeetingData.meeting_id, true);
+                    }} 
+                    className={cn("text-sky-600 border-sky-500 hover:bg-sky-100 hover:text-sky-700", isUrlCopied && "bg-sky-100 ring-1 ring-sky-300")}
+                  >
+                    {isUrlCopied ? <ClipboardCheck className="mr-1 h-4 w-4 text-green-500" /> : <Copy className="mr-1 h-4 w-4" />}
+                    {isUrlCopied ? "Copiado!" : "Copiar URL"}
                   </Button>
                 </div>
               </div>
@@ -922,15 +1258,19 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
               </div>
             </div>
           )}
-          <DialogFooter className="sm:justify-between gap-2">
-             <Button variant="destructive" onClick={() => { if (newMeetingData) deleteMeeting(newMeetingData.meeting_id); setIsNewMeetingDialogOpen(false);}} className="bg-red-500 hover:bg-red-600 border-red-700 text-white">
-                <Trash2 className="mr-2 h-4 w-4"/>Apagar Reunião
+          <DialogFooter className="sm:justify-between gap-2 bg-sky-200 border border-sky-500 rounded-lg p-2">
+             <Button 
+                variant="outline" // Changed variant to outline for custom styling
+                onClick={() => { if (newMeetingData) deleteMeeting(newMeetingData.meeting_id); setIsNewMeetingDialogOpen(false);}} 
+                className="bg-red-100 hover:bg-red-200 text-red-700 hover:text-red-800 border-red-500 hover:border-red-600"
+             >
+                <Trash2 className="mr-2 h-4"/>Excluir Reunião
             </Button>
             <Button 
               onClick={() => setIsNewMeetingDialogOpen(false)} 
-              className="bg-gray-800 hover:bg-gray-900 border border-gray-950 text-white"
+              className="bg-neutral-800 hover:bg-neutral-900 border border-neutral-950 text-neutral-100"
             >
-              <XCircle className="mr-2 h-4 w-4"/> Fechar
+              <X className="mr-2 h-4 w-4"/> Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -938,23 +1278,23 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
 
       {/* Diálogo de Confirmação de URL Padrão Salva */}
       <Dialog open={isUrlSaveConfirmDialogOpen} onOpenChange={setIsUrlSaveConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-white border-sky-500">
-          <DialogHeader className="items-center text-center">
-            <span className="mb-3 p-2 bg-green-100 border border-green-300 rounded-md inline-block">
-              <Check className="h-7 w-7 text-green-600" />
-            </span>
-            <DialogTitle className="text-sky-700 text-xl">URL Padrão Salva!</DialogTitle>
+        <DialogContent className="sm:max-w-md bg-sky-50 border-sky-400 shadow-xl rounded-lg">
+          <DialogHeader className="items-center text-center pt-6 pb-4">
+            <div className="p-3 bg-sky-100 border-2 border-sky-500 rounded-full mb-4 inline-flex">
+              <Check className="h-8 w-8 text-sky-600 stroke-[2.5]" />
+            </div>
+            <DialogTitle className="text-sky-700 text-2xl font-bold">URL Padrão Salva!</DialogTitle>
           </DialogHeader>
-          <DialogDescription className="text-center text-gray-600 py-3">
-            A nova URL de vídeo padrão foi salva com sucesso e será usada para futuras reuniões.
+          <DialogDescription className="text-center text-sky-600 px-6 py-2 text-sm">
+            Sua nova URL de vídeo padrão foi configurada com sucesso e será utilizada para as próximas reuniões criadas.
           </DialogDescription>
-          <DialogFooter className="sm:justify-center">
+          <DialogFooter className="sm:justify-center pt-2 pb-5">
             <Button 
               type="button" 
               onClick={() => setIsUrlSaveConfirmDialogOpen(false)} 
-              className="bg-sky-500 hover:bg-sky-600 text-white border-sky-700"
+              className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-5 rounded-md shadow-md hover:shadow-lg transition-all duration-150 ease-in-out border border-sky-700"
             >
-              OK
+              Entendido!
             </Button>
           </DialogFooter>
         </DialogContent>
