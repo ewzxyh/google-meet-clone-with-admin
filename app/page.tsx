@@ -47,7 +47,7 @@ export default async function Home() {
               alt="VideoZapp"
               width={180}
               height={50}
-              className="mr-2"
+              className="h-14 w-auto mr-2"
             />
           </div>
           <div className="ml-auto">
