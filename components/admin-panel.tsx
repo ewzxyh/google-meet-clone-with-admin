@@ -112,7 +112,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [isDeleting, setIsDeleting] = useState(false)
   const [defaultVideoUrl, setDefaultVideoUrl] = useState<string>(
-    "https://www.youtube.com/watch?v=_K9YV4t9dzY&ab_channel=WillSilva",
+    "https://mhvzjal0ig61abwu.public.blob.vercel-storage.com/Amanda-QQLE8o1Zw9BaYtLwXmBoIBUToihnWY.mp4",
   )
   const [isDefaultUrlDialogOpen, setIsDefaultUrlDialogOpen] = useState(false)
   const [newMeetingData, setNewMeetingData] = useState<Meeting | null>(null)
@@ -1022,7 +1022,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                       <Button
                         variant="outline"
                         className="h-9 w-9 p-0 flex items-center justify-center text-blue-600 border-blue-500 hover:bg-blue-100 hover:text-blue-700 sm:w-auto sm:px-3"
-                        onClick={() => router.push(`/${meeting.meeting_id}`)}
+                        onClick={() => window.open(`/${meeting.meeting_id}`, '_blank')}
                         title="Visualizar Reunião"
                       >
                         <ExternalLink className="h-4 w-4" />

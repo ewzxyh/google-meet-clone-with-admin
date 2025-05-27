@@ -12,7 +12,7 @@ export default async function Home() {
     const meetingId = generateMeetingId()
 
     // Obter URL padrão do localStorage (não funciona no servidor, então usamos um valor padrão)
-    const defaultVideoUrl = "https://www.youtube.com/watch?v=_K9YV4t9dzY&ab_channel=WillSilva"
+    const defaultVideoUrl = "https://mhvzjal0ig61abwu.public.blob.vercel-storage.com/Amanda-QQLE8o1Zw9BaYtLwXmBoIBUToihnWY.mp4"
 
     // If Supabase is available, create a meeting in the database
     if (supabaseServer) {
@@ -50,16 +50,6 @@ export default async function Home() {
               className="h-14 w-auto mr-2"
             />
           </div>
-          <div className="ml-auto">
-            <Link href="/admin">
-              <Button variant="outline" className="text-blue-600">
-                Admin
-              </Button>
-            </Link>
-            <Button variant="ghost" className="ml-2 text-blue-600">
-              Fazer login
-            </Button>
-          </div>
         </div>
       </header>
 
@@ -77,20 +67,11 @@ export default async function Home() {
               <Button className="w-full bg-blue-600 hover:bg-blue-700">Participar</Button>
             </form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-2 text-gray-500">ou</span>
-              </div>
-            </div>
-
-            <form action={createMeeting}>
+            {/* <form action={createMeeting}>
               <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
                 Iniciar uma nova reunião
               </Button>
-            </form>
+            </form> */}
           </div>
         </div>
       </main>

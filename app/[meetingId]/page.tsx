@@ -31,7 +31,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ meetin
       return (
         <JoinMeeting
           meetingId={meetingId}
-          videoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+          videoUrl="https://mhvzjal0ig61abwu.public.blob.vercel-storage.com/Amanda-QQLE8o1Zw9BaYtLwXmBoIBUToihnWY.mp4"
         />
       )
     }
@@ -67,7 +67,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ meetin
     return (
       <JoinMeeting
         meetingId={meetingId}
-        videoUrl="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+        videoUrl="https://mhvzjal0ig61abwu.public.blob.vercel-storage.com/Amanda-QQLE8o1Zw9BaYtLwXmBoIBUToihnWY.mp4"
       />
     )
   }

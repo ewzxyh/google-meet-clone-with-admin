@@ -5,6 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { X, Send } from "lucide-react"
 
 interface ChatPanelProps {
   onClose: () => void
@@ -27,19 +28,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
       <div className="flex items-center justify-between border-b border-gray-200 p-4">
         <h2 className="text-lg font-medium">Mensagens na chamada</h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-5 w-5"
-          >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
+          <X className="h-5 w-5" />
         </Button>
       </div>
 
@@ -80,19 +69,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
             className="flex-1"
           />
           <Button type="submit" variant="ghost" size="icon">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-            >
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
+            <Send className="h-5 w-5" />
           </Button>
         </form>
       </div>

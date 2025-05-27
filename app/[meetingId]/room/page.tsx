@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import MeetingRoom from "@/components/meeting-room"
 import LoadingScreen from "@/components/loading-screen"
 import { getSupabaseBrowser } from "@/lib/supabase"
 
-export default function RoomPage({ params }: { params: { meetingId: string } }) {
+export default function RoomPage({ params }: { params: Promise<{ meetingId: string }> }) {
+  const { meetingId } = use(params)
   const router = useRouter()
   const searchParams = useSearchParams()
   const userName = searchParams.get("name")
@@ -16,7 +17,7 @@ export default function RoomPage({ params }: { params: { meetingId: string } }) 
 
   useEffect(() => {
     if (!userName || !videoUrl) {
-      router.push(`/${params.meetingId}`)
+      router.push(`/${meetingId}`)
       return
     }
 
@@ -30,12 +31,12 @@ export default function RoomPage({ params }: { params: { meetingId: string } }) 
           const { data: meeting } = await supabase
             .from("meetings")
             .select("status")
-            .eq("meeting_id", params.meetingId)
+            .eq("meeting_id", meetingId)
             .single()
 
           if (meeting && meeting.status === "ended") {
             // If meeting is ended, redirect to meeting page
-            router.push(`/${params.meetingId}`)
+            router.push(`/${meetingId}`)
             return
           }
 
@@ -43,11 +44,11 @@ export default function RoomPage({ params }: { params: { meetingId: string } }) 
           const { data } = await supabase
             .from("participants")
             .select("last_video_position")
-            .eq("meeting_id", params.meetingId)
+            .eq("meeting_id", meetingId)
             .eq("name", userName)
             .single()
 
-          if (data) {
+          if (data && typeof data.last_video_position === 'number') {
             setLastPosition(data.last_video_position)
           }
         } catch (error) {
@@ -62,7 +63,7 @@ export default function RoomPage({ params }: { params: { meetingId: string } }) 
     }
 
     fetchLastPosition()
-  }, [userName, videoUrl, params.meetingId, router])
+  }, [userName, videoUrl, meetingId, router])
 
   if (isLoading) {
     return <LoadingScreen userName={userName || ""} />
@@ -70,7 +71,7 @@ export default function RoomPage({ params }: { params: { meetingId: string } }) 
 
   return (
     <MeetingRoom
-      meetingId={params.meetingId}
+      meetingId={meetingId}
       userName={userName || ""}
       videoUrl={videoUrl || ""}
       initialPosition={lastPosition}

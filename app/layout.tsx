@@ -6,9 +6,8 @@ import { Inter } from "next/font/google"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Google Meet Clone",
-  description: "A static Google Meet clone built with Next.js",
-    generator: 'v0.dev'
+  title: "Meet VideoZapp",
+  description: "Reuniões com vídeo",
 }
 
 export default function RootLayout({
