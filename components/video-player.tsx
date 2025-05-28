@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react"
-import { Play } from "lucide-react"
 
 interface VideoPlayerProps {
   videoUrl: string
@@ -25,7 +24,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   isEnded = false
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [hasStarted, setHasStarted] = useState(false)
   const [currentVolume, setCurrentVolume] = useState(volume)
 
   // Detectar iOS
@@ -36,7 +34,10 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
   useImperativeHandle(ref, () => ({
     play: () => {
-      playVideo()
+      const videoElement = videoRef.current
+      if (videoElement) {
+        videoElement.play()
+      }
     },
     setVolume: (vol: number) => {
       const videoElement = videoRef.current
@@ -48,38 +49,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     },
     getVolume: () => currentVolume
   }))
-
-  const playVideo = () => {
-    const videoElement = videoRef.current
-    if (!videoElement || isEnded) return
-
-    console.log('🎬 Reproduzindo vídeo...')
-    
-    // Configurar vídeo
-    videoElement.currentTime = initialPosition
-    videoElement.muted = false
-    videoElement.volume = currentVolume
-    
-    // Reproduzir
-    videoElement.play()
-      .then(() => {
-        console.log('✅ Vídeo reproduzindo!')
-        setHasStarted(true)
-      })
-      .catch((error) => {
-        console.error('❌ Erro ao reproduzir:', error)
-        // Se falhar, tentar mutado
-        videoElement.muted = true
-        videoElement.play()
-          .then(() => {
-            console.log('✅ Vídeo reproduzindo (mutado)!')
-            setHasStarted(true)
-          })
-          .catch((err) => {
-            console.error('❌ Erro mesmo mutado:', err)
-          })
-      })
-  }
 
   useEffect(() => {
     const videoElement = videoRef.current
@@ -98,7 +67,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
   }, [onVideoEnd, isEnded])
 
-  // Para iOS: interface simples com botão
+  // Para iOS: vídeo simples sem autoplay
   if (isIOS) {
     return (
       <div className="relative h-full w-full bg-gray-900">
@@ -107,29 +76,14 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           className="h-full w-full object-contain"
           src={videoUrl}
           playsInline
-          controls={false}
-          preload="auto"
+          controls
+          preload="metadata"
         />
-        
-        {!hasStarted && (
-          <div 
-            className="absolute inset-0 z-20 flex items-center justify-center bg-black bg-opacity-50 cursor-pointer"
-            onClick={playVideo}
-          >
-            <div className="text-center">
-              <div className="rounded-full bg-white bg-opacity-90 p-6 mx-auto mb-4 w-20 h-20 flex items-center justify-center">
-                <Play className="h-8 w-8 text-black fill-black ml-1" />
-              </div>
-              <h3 className="text-white text-xl font-medium">Entrar na reunião</h3>
-              <p className="text-gray-300 text-sm mt-2">Toque para participar</p>
-            </div>
-          </div>
-        )}
       </div>
     )
   }
 
-  // Para outros dispositivos: comportamento normal
+  // Para outros dispositivos: autoplay normal
   return (
     <div className="relative h-full w-full bg-gray-900">
       <video
