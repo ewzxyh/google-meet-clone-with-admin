@@ -24,12 +24,12 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const videoPlayerRef = useRef<VideoPlayerRef>(null)
 
-  // Auto-hide security notice after 10 seconds
+  // Auto-hide security notice after 3 seconds
   useEffect(() => {
     if (showSecurityNotice) {
       const timer = setTimeout(() => {
         setShowSecurityNotice(false)
-      }, 10000)
+      }, 3000)
 
       return () => clearTimeout(timer)
     }
@@ -120,6 +120,8 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
             videoUrl={videoUrl}
             initialPosition={initialPosition}
             onVideoEnd={handleVideoEnd}
+            meetingId={meetingId}
+            userName={userName}
           />
 
           {/* User name display */}
@@ -130,10 +132,6 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
             <div className="absolute bottom-20 left-1/2 -translate-x-1/2 transform z-10">
               <SecurityNotice onClose={() => {
                 setShowSecurityNotice(false)
-                // Iniciar o vídeo após interação do usuário
-                if (videoPlayerRef.current) {
-                  videoPlayerRef.current.play()
-                }
               }} />
             </div>
           )}
