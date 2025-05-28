@@ -31,6 +31,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [isVideoLoaded, setIsVideoLoaded] = useState(false)
   const [needsAudioActivation, setNeedsAudioActivation] = useState(false)
   const [playbackAttempted, setPlaybackAttempted] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
 
   // Detectar iOS com mais precisão
   const isIOS = typeof window !== 'undefined' && (
@@ -61,10 +62,92 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     getVolume: () => currentVolume
   }))
 
+  // Função mais direta para iOS
+  const startVideoPlaybackIOS = async () => {
+    const videoElement = videoRef.current
+    if (!videoElement || isEnded) return false
+
+    console.log('=== TENTANDO REPRODUZIR VÍDEO NO iOS ===')
+    console.log('Video element:', videoElement)
+    console.log('Video src:', videoElement.src)
+    console.log('Video readyState:', videoElement.readyState)
+    console.log('Video duration:', videoElement.duration)
+    console.log('Initial position:', initialPosition)
+    
+    try {
+      // Aguardar o vídeo estar pronto se necessário
+      if (videoElement.readyState < 3) { // HAVE_FUTURE_DATA = 3
+        console.log('Aguardando vídeo carregar mais dados...')
+        await new Promise((resolve) => {
+          const handleCanPlay = () => {
+            videoElement.removeEventListener('canplay', handleCanPlay)
+            resolve(true)
+          }
+          videoElement.addEventListener('canplay', handleCanPlay)
+          
+          // Timeout de segurança
+          setTimeout(() => {
+            videoElement.removeEventListener('canplay', handleCanPlay)
+            resolve(true)
+          }, 3000)
+        })
+      }
+
+      // Primeiro, garantir que o vídeo está na posição correta
+      videoElement.currentTime = initialPosition
+      
+      // No iOS, sempre iniciar mutado
+      videoElement.muted = true
+      videoElement.volume = 0
+      
+      console.log('Configurações aplicadas - muted:', videoElement.muted, 'volume:', videoElement.volume, 'currentTime:', videoElement.currentTime)
+      
+      // Aguardar um pouco para garantir que a posição foi definida
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      console.log('Chamando videoElement.play()...')
+      console.log('ReadyState antes do play:', videoElement.readyState)
+      
+      // Tentar reproduzir
+      const playPromise = videoElement.play()
+      
+      if (playPromise && typeof playPromise.then === 'function') {
+        await playPromise
+      }
+      
+      console.log('✅ VÍDEO INICIADO NO iOS (MUTADO) ✅')
+      console.log('Video paused:', videoElement.paused)
+      console.log('Video ended:', videoElement.ended)
+      console.log('Video currentTime:', videoElement.currentTime)
+      
+      setIsPlaybackBlocked(false)
+      setHasUserInteracted(true)
+      setPlaybackAttempted(true)
+      setIsPlaying(true)
+      setNeedsAudioActivation(true)
+      
+      return true
+    } catch (error) {
+      console.error('❌ ERRO AO REPRODUZIR VÍDEO NO iOS:', error)
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code
+      })
+      setIsPlaybackBlocked(true)
+      return false
+    }
+  }
+
   // Função principal para iniciar reprodução
   const startVideoPlayback = async (forceUnmuted = false) => {
     const videoElement = videoRef.current
     if (!videoElement || isEnded) return false
+
+    // Para iOS, usar função específica
+    if (isIOS) {
+      return await startVideoPlaybackIOS()
+    }
 
     try {
       // Garantir posição inicial
@@ -73,7 +156,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       }
       
       // Configurar áudio baseado na plataforma
-      if (isIOS || isSafari) {
+      if (isSafari) {
         videoElement.muted = !forceUnmuted
       } else {
         videoElement.muted = false
@@ -85,13 +168,14 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       setIsPlaybackBlocked(false)
       setHasUserInteracted(true)
       setPlaybackAttempted(true)
+      setIsPlaying(true)
       
-      // No iOS, mostrar opção para ativar áudio
-      if ((isIOS || isSafari) && !forceUnmuted) {
+      // No Safari, mostrar opção para ativar áudio
+      if (isSafari && !forceUnmuted) {
         setNeedsAudioActivation(true)
       }
       
-      console.log('Vídeo iniciado com sucesso', { muted: videoElement.muted, platform: isIOS ? 'iOS' : isSafari ? 'Safari' : 'Other' })
+      console.log('Vídeo iniciado com sucesso', { muted: videoElement.muted, platform: isSafari ? 'Safari' : 'Other' })
       return true
     } catch (error) {
       console.error('Erro ao reproduzir vídeo:', error)
@@ -115,19 +199,50 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
   }
 
-  // Função para lidar com clique/toque inicial
-  const handleStartVideo = async () => {
-    if (isPlaybackBlocked || !isVideoLoaded) {
-      // Tentar reproduzir com áudio se possível
+  // Função para lidar com clique/toque inicial - melhorada para iOS
+  const handleStartVideo = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    
+    console.log('=== HANDLE START VIDEO CHAMADA ===')
+    console.log('isPlaybackBlocked:', isPlaybackBlocked)
+    console.log('isVideoLoaded:', isVideoLoaded)
+    console.log('needsAudioActivation:', needsAudioActivation)
+    console.log('isIOS:', isIOS)
+    console.log('isPlaying:', isPlaying)
+    console.log('hasUserInteracted:', hasUserInteracted)
+    
+    if (needsAudioActivation && isPlaying) {
+      // Se já está reproduzindo mas precisa ativar áudio
+      console.log('Ativando áudio...')
+      await activateAudio()
+      return
+    }
+    
+    if (isPlaybackBlocked || !isPlaying) {
+      // Tentar reproduzir o vídeo
+      console.log('Tentando iniciar reprodução...')
       const success = await startVideoPlayback(!isIOS && !isSafari)
+      
       if (!success && (isIOS || isSafari)) {
         // Se falhou, tentar mutado
+        console.log('Primeira tentativa falhou, tentando mutado...')
         await startVideoPlayback(false)
       }
-    } else if (needsAudioActivation) {
-      await activateAudio()
     }
   }
+
+  // Tentar autoplay quando o vídeo carrega (apenas se não for iOS)
+  useEffect(() => {
+    if (isVideoLoaded && !playbackAttempted && !isIOS) {
+      console.log('Tentando autoplay (não iOS)...')
+      setTimeout(() => {
+        startVideoPlayback()
+      }, 200)
+    }
+  }, [isVideoLoaded, playbackAttempted, isIOS])
 
   useEffect(() => {
     const videoElement = videoRef.current
@@ -141,13 +256,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     const handleLoadedData = () => {
       console.log('Dados do vídeo carregados')
       setIsVideoLoaded(true)
-      
-      // Tentar reproduzir automaticamente
-      if (!playbackAttempted) {
-        setTimeout(() => {
-          startVideoPlayback()
-        }, 100)
-      }
     }
 
     const handleCanPlay = () => {
@@ -155,18 +263,23 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       if (Math.abs(videoElement.currentTime - initialPosition) > 1) {
         videoElement.currentTime = initialPosition
       }
+      console.log('Video can play, ready state:', videoElement.readyState)
     }
 
     const handleEnded = () => {
       if (!isEnded) {
         console.log('Vídeo terminou')
+        setIsPlaying(false)
         onVideoEnd()
       }
     }
 
     const handlePause = () => {
-      // Só tentar reproduzir automaticamente se o usuário já interagiu
-      if (hasUserInteracted && !isEnded && !isPlaybackBlocked) {
+      console.log('Vídeo pausado')
+      setIsPlaying(false)
+      
+      // Só tentar reproduzir automaticamente se o usuário já interagiu e não for iOS
+      if (hasUserInteracted && !isEnded && !isPlaybackBlocked && !isIOS) {
         setTimeout(() => {
           if (videoElement.paused && !isEnded) {
             videoElement.play().catch(() => {
@@ -178,12 +291,15 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
 
     const handlePlay = () => {
+      console.log('Vídeo iniciou reprodução')
       setIsPlaybackBlocked(false)
+      setIsPlaying(true)
     }
 
     const handleError = (e: Event) => {
       console.error('Erro no vídeo:', e)
       setIsPlaybackBlocked(true)
+      setIsPlaying(false)
     }
 
     const handleWaiting = () => {
@@ -193,6 +309,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     const handlePlaying = () => {
       console.log('Vídeo reproduzindo')
       setIsPlaybackBlocked(false)
+      setIsPlaying(true)
     }
 
     // Adicionar listeners
@@ -217,7 +334,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       videoElement.removeEventListener("waiting", handleWaiting)
       videoElement.removeEventListener("error", handleError)
     }
-  }, [videoUrl, initialPosition, onVideoEnd, hasUserInteracted, isEnded, isPlaybackBlocked, playbackAttempted])
+  }, [videoUrl, initialPosition, onVideoEnd, hasUserInteracted, isEnded, isPlaybackBlocked, playbackAttempted, isIOS])
 
   // Controle de volume
   useEffect(() => {
@@ -236,11 +353,18 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
   return (
     <div className="relative h-full w-full bg-gray-900">
-      {/* Overlay quando reprodução está bloqueada */}
-      {(isPlaybackBlocked || (!playbackAttempted && isVideoLoaded)) && (
+      {/* Overlay quando reprodução está bloqueada ou não iniciada */}
+      {(isPlaybackBlocked || (!isPlaying && isVideoLoaded)) && (
         <div 
           className="absolute inset-0 z-20 flex items-center justify-center bg-gray-900 cursor-pointer transition-opacity"
           onClick={handleStartVideo}
+          onTouchStart={(e) => {
+            // Para iOS, também tratar touch events
+            if (isIOS) {
+              e.preventDefault()
+              handleStartVideo()
+            }
+          }}
         >
           <div className="text-white text-center p-6 max-w-sm">
             <div className="mb-4 flex justify-center">
@@ -260,10 +384,16 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       )}
 
       {/* Overlay discreto para ativar áudio no iOS/Safari */}
-      {needsAudioActivation && hasUserInteracted && !isPlaybackBlocked && (
+      {needsAudioActivation && hasUserInteracted && isPlaying && (
         <div 
           className="absolute top-4 right-4 z-10 bg-black bg-opacity-80 rounded-lg p-3 cursor-pointer hover:bg-opacity-90 transition-all"
           onClick={activateAudio}
+          onTouchStart={(e) => {
+            if (isIOS) {
+              e.preventDefault()
+              activateAudio()
+            }
+          }}
         >
           <div className="text-white text-center">
             <div className="text-xl mb-1">🔊</div>
@@ -293,6 +423,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         controlsList="nodownload nofullscreen noremoteplayback"
         preload="auto"
         webkit-playsinline="true"
+        style={{ touchAction: 'manipulation' }}
       />
     </div>
   )
@@ -301,3 +432,4 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 VideoPlayer.displayName = 'VideoPlayer'
 
 export default VideoPlayer
+

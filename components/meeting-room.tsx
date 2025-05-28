@@ -7,6 +7,7 @@ import { getSupabaseBrowser } from "@/lib/supabase"
 import { MicOff, VideoOff, MessageCircle, Phone, Volume2, VolumeX } from "lucide-react"
 import ChatPanel from "./chat-panel"
 import VideoPlayer, { VideoPlayerRef } from "./video-player"
+import IOSDebugInfo from "./ios-debug-info"
 
 interface MeetingRoomProps {
   meetingId: string
@@ -25,6 +26,12 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   const [isMarkingAsEnded, setIsMarkingAsEnded] = useState(false)
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const videoPlayerRef = useRef<VideoPlayerRef>(null)
+
+  // Detectar iOS para debug
+  const isIOS = typeof window !== 'undefined' && (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
 
   const markMeetingAsEnded = async () => {
     if (isMarkingAsEnded) {
@@ -261,6 +268,9 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
           </Button>
         </div>
       </div>
+
+      {/* Debug info para iOS */}
+      <IOSDebugInfo isVisible={isIOS} />
     </div>
   )
 }
