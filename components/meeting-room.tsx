@@ -22,13 +22,22 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
   const [showVolumeSlider, setShowVolumeSlider] = useState(false)
+  const [isMarkingAsEnded, setIsMarkingAsEnded] = useState(false)
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const videoPlayerRef = useRef<VideoPlayerRef>(null)
 
   const markMeetingAsEnded = async () => {
+    if (isMarkingAsEnded) {
+      console.log("Already marking meeting as ended, skipping...")
+      return
+    }
+
+    setIsMarkingAsEnded(true)
+    
     const supabase = getSupabaseBrowser()
     if (!supabase) {
       console.error("Supabase client not available")
+      setIsMarkingAsEnded(false)
       return
     }
 
@@ -46,6 +55,8 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
       console.log(`Meeting ${meetingId} successfully marked as ended in database`)
     } catch (error) {
       console.error("Error marking meeting as ended:", error)
+    } finally {
+      setIsMarkingAsEnded(false)
     }
   }
 
@@ -78,12 +89,13 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   // Marcar reunião como encerrada quando o componente for desmontado
   useEffect(() => {
     return () => {
-      // Só marcar como encerrada se não estiver já encerrada
-      if (!isEnded) {
+      // Só marcar como encerrada se não estiver já encerrada e não estiver no processo
+      if (!isEnded && !isMarkingAsEnded) {
+        console.log("Component unmounting, marking meeting as ended...")
         markMeetingAsEnded()
       }
     }
-  }, [isEnded])
+  }, [isEnded, isMarkingAsEnded])
 
   const handleVolumeChange = useCallback((newVolume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, newVolume))
@@ -95,7 +107,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   }, [])
 
   const toggleMute = useCallback(() => {
-    if (isMuted) {
+    if (isMuted || volume === 0) {
       const newVolume = volume === 0 ? 0.5 : volume
       handleVolumeChange(newVolume)
     } else {
@@ -149,6 +161,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
             initialPosition={initialPosition}
             onVideoEnd={handleVideoEnd}
             volume={volume}
+            isEnded={isEnded}
           />
 
           {/* User name display */}
