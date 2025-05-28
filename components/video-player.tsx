@@ -251,7 +251,16 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       if (Math.abs(videoElement.currentTime - initialPosition) > 1) {
         videoElement.currentTime = initialPosition
       }
-      console.log('Video can play, ready state:', videoElement.readyState)
+      console.log('📺 Video can play, ready state:', videoElement.readyState)
+      
+      // Se é iOS e usuário já interagiu, tentar reproduzir se ainda não estiver
+      if (isIOS && hasUserInteracted && videoElement.paused) {
+        console.log('🍎 iOS: Tentando reproduzir no canplay...')
+        videoElement.muted = true
+        videoElement.play().catch(err => {
+          console.log('Erro no canplay iOS:', err)
+        })
+      }
     }
 
     const handleEnded = () => {
@@ -295,9 +304,20 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
 
     const handlePlaying = () => {
-      console.log('Vídeo reproduzindo')
+      console.log('🎬 Vídeo reproduzindo (evento playing)')
+      console.log('Estado atual:', {
+        isPlaying: isPlaying,
+        isPlaybackBlocked: isPlaybackBlocked,
+        hasUserInteracted: hasUserInteracted,
+        needsAudioActivation: needsAudioActivation
+      })
       setIsPlaybackBlocked(false)
       setIsPlaying(true)
+      
+      // Se é iOS e usuário interagiu, ativar opção de áudio
+      if (isIOS && hasUserInteracted) {
+        setNeedsAudioActivation(true)
+      }
     }
 
     // Adicionar listeners
@@ -343,6 +363,30 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   useEffect(() => {
     if (!isIOS) return
 
+    // Adicionar função global de debug
+    (window as any).debugVideoIOS = () => {
+      const videoElement = videoRef.current
+      if (videoElement) {
+        console.log('🔍 DEBUG MANUAL - Estado do vídeo:', {
+          src: videoElement.src,
+          paused: videoElement.paused,
+          muted: videoElement.muted,
+          currentTime: videoElement.currentTime,
+          duration: videoElement.duration,
+          readyState: videoElement.readyState,
+          networkState: videoElement.networkState,
+          videoWidth: videoElement.videoWidth,
+          videoHeight: videoElement.videoHeight,
+          isPlaying: !videoElement.paused && !videoElement.ended,
+          stateIsPlaying: isPlaying,
+          stateIsBlocked: isPlaybackBlocked,
+          stateHasInteracted: hasUserInteracted,
+          stateIsLoaded: isVideoLoaded,
+          stateNeedsAudio: needsAudioActivation
+        })
+      }
+    }
+
     const timer = setInterval(() => {
       const videoElement = videoRef.current
       if (videoElement) {
@@ -357,15 +401,18 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           stateIsBlocked: isPlaybackBlocked
         })
       }
-    }, 2000)
+    }, 3000) // Reduzindo para 3s para não poluir muito
 
-    return () => clearInterval(timer)
-  }, [isIOS, isPlaying, isPlaybackBlocked])
+    return () => {
+      clearInterval(timer)
+      delete (window as any).debugVideoIOS
+    }
+  }, [isIOS, isPlaying, isPlaybackBlocked, hasUserInteracted, isVideoLoaded, needsAudioActivation])
 
   return (
     <div className="relative h-full w-full bg-gray-900">
       {/* Overlay quando reprodução está bloqueada ou não iniciada */}
-      {(isPlaybackBlocked || (!isPlaying && isVideoLoaded)) && (
+      {(isPlaybackBlocked || (!isPlaying && isVideoLoaded && !hasUserInteracted)) && (
         <div 
           className="absolute inset-0 z-20 flex items-center justify-center bg-gray-900 cursor-pointer transition-opacity"
           onClick={handleStartVideo}
@@ -379,8 +426,19 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
               const videoElement = videoRef.current
               if (videoElement) {
                 console.log('Tentativa direta de play no touch...')
+                console.log('Estado antes:', {
+                  paused: videoElement.paused,
+                  readyState: videoElement.readyState,
+                  isVideoLoaded: isVideoLoaded
+                })
+                
                 videoElement.currentTime = initialPosition
                 videoElement.muted = true
+                
+                // Forçar estado de carregamento
+                setIsVideoLoaded(true)
+                setIsPlaybackBlocked(false)
+                setHasUserInteracted(true)
                 
                 const playPromise = videoElement.play()
                 console.log('Play promise:', playPromise)
@@ -389,6 +447,11 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                   playPromise
                     .then(() => {
                       console.log('✅ SUCESSO NO TOUCH!')
+                      console.log('Estado depois do sucesso:', {
+                        paused: videoElement.paused,
+                        currentTime: videoElement.currentTime,
+                        readyState: videoElement.readyState
+                      })
                       setIsPlaybackBlocked(false)
                       setIsPlaying(true)
                       setHasUserInteracted(true)
@@ -475,7 +538,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       )}
 
       {/* Loading indicator quando vídeo está carregando */}
-      {!isVideoLoaded && (
+      {(!isVideoLoaded || (!isPlaying && hasUserInteracted && !isPlaybackBlocked)) && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900">
           <div className="text-white text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
