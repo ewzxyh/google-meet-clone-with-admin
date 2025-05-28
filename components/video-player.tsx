@@ -1,177 +1,179 @@
 "use client"
 
 import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react"
-import VideoLoading from "./video-loading"
-import MeetingConfirmation from "./meeting-confirmation"
-import MeetingWaitingRoom from "./meeting-waiting-room"
-import { useIOSDetection } from "@/hooks/use-ios-detection"
 
 interface VideoPlayerProps {
   videoUrl: string
   initialPosition: number
   onVideoEnd: () => void
-  meetingId: string
-  userName: string
+  volume?: number
 }
 
 export interface VideoPlayerRef {
   play: () => void
+  setVolume: (volume: number) => void
+  getVolume: () => number
 }
 
-const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ videoUrl, initialPosition, onVideoEnd, meetingId, userName }, ref) => {
+const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ 
+  videoUrl, 
+  initialPosition, 
+  onVideoEnd, 
+  volume = 1
+}, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const { isIOS, isLoaded } = useIOSDetection()
-  const [needsUserInteraction, setNeedsUserInteraction] = useState(false)
-  const [showWaitingRoom, setShowWaitingRoom] = useState(false)
-  const [showConfirmation, setShowConfirmation] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [hasUserInteracted, setHasUserInteracted] = useState(false)
+  const [isPendingPlay, setIsPendingPlay] = useState(false)
+  const [currentVolume, setCurrentVolume] = useState(volume)
+
+  // Detectar iOS
+  const isIOS = typeof window !== 'undefined' && (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
 
   useImperativeHandle(ref, () => ({
     play: () => {
       const videoElement = videoRef.current
       if (videoElement) {
-        videoElement.play().catch(console.error)
+        if (isIOS && !hasUserInteracted) {
+          videoElement.muted = true
+          videoElement.play().then(() => {
+            setIsPendingPlay(true)
+          }).catch(console.error)
+        } else {
+          videoElement.muted = false
+          videoElement.play().catch(console.error)
+        }
+      }
+    },
+    setVolume: (vol: number) => {
+      const videoElement = videoRef.current
+      if (videoElement) {
+        const clampedVolume = Math.max(0, Math.min(1, vol))
+        videoElement.volume = clampedVolume
+        setCurrentVolume(clampedVolume)
+      }
+    },
+    getVolume: () => currentVolume
+  }))
+
+  // Função para ativar áudio após interação
+  const enableAudioAfterInteraction = async () => {
+    const videoElement = videoRef.current
+    if (videoElement && isIOS && !hasUserInteracted) {
+      try {
+        // Pausar, desmutar e reproduzir novamente
+        videoElement.pause()
+        videoElement.muted = false
+        videoElement.volume = currentVolume
+        await videoElement.play()
+        setHasUserInteracted(true)
+        setIsPendingPlay(false)
+      } catch (error) {
+        console.error('Erro ao ativar áudio:', error)
       }
     }
-  }))
+  }
 
   useEffect(() => {
     const videoElement = videoRef.current
-    if (videoElement && isLoaded) {
+    if (videoElement) {
       videoElement.currentTime = initialPosition
 
       const handleEnded = () => {
         onVideoEnd()
       }
 
-      const handlePlay = () => {
-        setIsPlaying(true)
-        setNeedsUserInteraction(false)
-        setShowWaitingRoom(false)
-        setShowConfirmation(false)
-        setIsLoading(false)
-      }
-
-      const handlePause = () => {
-        setIsPlaying(false)
-        // Só tentar reproduzir novamente se não for iOS ou se já houve interação
-        if (!isIOS && !videoElement.ended) {
-          videoElement.play().catch(() => {})
-        }
-      }
-
-      const handleLoadedData = () => {
-        setIsLoading(false)
-        // Tentar autoplay baseado no dispositivo
-        if (isIOS) {
-          // iOS: começar mutado e aguardar interação
-          videoElement.muted = true
-          videoElement.play().catch(() => {
-            setNeedsUserInteraction(true)
-            setShowWaitingRoom(true)
-          })
-        } else {
-          // Outros dispositivos: tentar autoplay normal
-          videoElement.play().catch(() => {
-            setNeedsUserInteraction(true)
-            setShowWaitingRoom(true)
-          })
-        }
-      }
-
-      const handleLoadStart = () => {
-        setIsLoading(true)
-      }
-
-      // Prevenir cliques no vídeo
+      // Permitir cliques para ativar áudio no iOS
       const handleClick = (e: Event) => {
-        e.preventDefault()
-        e.stopPropagation()
+        if (isPendingPlay && isIOS) {
+          e.preventDefault()
+          e.stopPropagation()
+          enableAudioAfterInteraction()
+        } else {
+          e.preventDefault()
+          e.stopPropagation()
+        }
+      }
+
+      // Prevenir pausa
+      const handlePause = () => {
+        if (!isPendingPlay) {
+          videoElement.play()
+        }
       }
 
       videoElement.addEventListener("ended", handleEnded)
-      videoElement.addEventListener("play", handlePlay)
-      videoElement.addEventListener("pause", handlePause)
-      videoElement.addEventListener("loadeddata", handleLoadedData)
-      videoElement.addEventListener("loadstart", handleLoadStart)
       videoElement.addEventListener("click", handleClick)
+      videoElement.addEventListener("pause", handlePause)
+
+      // Tentar reproduzir - mutado inicialmente no iOS
+      if (isIOS) {
+        videoElement.muted = true
+        videoElement.play().then(() => {
+          setIsPendingPlay(true)
+        }).catch(() => {
+          console.log("Autoplay bloqueado - aguardando interação do usuário")
+        })
+      } else {
+        videoElement.muted = false
+        videoElement.play().catch(() => {
+          console.log("Autoplay bloqueado - aguardando interação do usuário")
+        })
+      }
 
       return () => {
         videoElement.removeEventListener("ended", handleEnded)
-        videoElement.removeEventListener("play", handlePlay)
-        videoElement.removeEventListener("pause", handlePause)
-        videoElement.removeEventListener("loadeddata", handleLoadedData)
-        videoElement.removeEventListener("loadstart", handleLoadStart)
         videoElement.removeEventListener("click", handleClick)
+        videoElement.removeEventListener("pause", handlePause)
       }
     }
-  }, [videoUrl, initialPosition, onVideoEnd, isIOS, isLoaded])
+  }, [videoUrl, initialPosition, onVideoEnd, isPendingPlay, isIOS])
 
-  const handleWaitingRoomReady = () => {
-    setShowWaitingRoom(false)
-    setShowConfirmation(true)
-  }
-
-  const handleMeetingConfirmation = () => {
+  // Separar o controle de volume em um useEffect próprio
+  useEffect(() => {
     const videoElement = videoRef.current
     if (videoElement) {
-      if (isIOS) {
-        // iOS: começar mutado e depois tentar ativar áudio
-        videoElement.muted = true
-        videoElement.play().then(() => {
-          // Tentar ativar áudio após 1 segundo
-          setTimeout(() => {
-            videoElement.muted = false
-          }, 1000)
-        }).catch(console.error)
-      } else {
-        // Outros dispositivos: reproduzir normalmente
-        videoElement.play().catch(console.error)
-      }
-      setNeedsUserInteraction(false)
-      setShowConfirmation(false)
+      videoElement.volume = currentVolume
     }
-  }
+  }, [currentVolume])
+
+  // Atualizar volume quando prop mudar
+  useEffect(() => {
+    if (volume !== currentVolume) {
+      setCurrentVolume(volume)
+    }
+  }, [volume, currentVolume])
 
   return (
     <div className="relative h-full w-full">
+      {/* Overlay para iOS quando áudio está pendente */}
+      {isPendingPlay && isIOS && (
+        <div 
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-70 cursor-pointer"
+          onClick={enableAudioAfterInteraction}
+        >
+          <div className="text-white text-center p-4">
+            <div className="text-6xl mb-4">🔊</div>
+            <p className="text-xl font-medium mb-2">Toque para ativar o áudio</p>
+            <p className="text-sm text-gray-300">O vídeo está reproduzindo sem som</p>
+          </div>
+        </div>
+      )}
+      
       <video
         ref={videoRef}
         className="h-full w-full object-contain"
         src={videoUrl}
-        autoPlay={!isIOS} // Desabilitar autoplay no iOS
+        autoPlay
         playsInline
-        muted={isIOS} // iOS sempre começa mutado
+        muted={isIOS ? true : false}
         controls={false}
         disablePictureInPicture
         controlsList="nodownload nofullscreen noremoteplayback"
-        style={{ pointerEvents: 'none' }}
-        preload="metadata"
+        style={{ pointerEvents: isPendingPlay ? 'none' : 'auto' }}
       />
-      
-      {/* Loading overlay */}
-      <VideoLoading isVisible={isLoading} />
-      
-      {/* Sala de espera (aparece primeiro) */}
-      {needsUserInteraction && !isLoading && (
-        <MeetingWaitingRoom
-          isVisible={showWaitingRoom}
-          onReady={handleWaitingRoomReady}
-          meetingId={meetingId}
-          userName={userName}
-        />
-      )}
-      
-      {/* Confirmação de participação na reunião */}
-      {needsUserInteraction && !isLoading && (
-        <MeetingConfirmation
-          isVisible={showConfirmation}
-          onConfirm={handleMeetingConfirmation}
-          meetingId={meetingId}
-          userName={userName}
-        />
-      )}
     </div>
   )
 })

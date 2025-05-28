@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { getSupabaseBrowser } from "@/lib/supabase"
-import { MicOff, VideoOff, MessageCircle, Phone } from "lucide-react"
+import { MicOff, VideoOff, MessageCircle, Phone, Volume2, VolumeX } from "lucide-react"
 import ChatPanel from "./chat-panel"
-import SecurityNotice from "./security-notice"
 import VideoPlayer, { VideoPlayerRef } from "./video-player"
 
 interface MeetingRoomProps {
@@ -20,50 +19,50 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   const router = useRouter()
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isEnded, setIsEnded] = useState(false)
-  const [showSecurityNotice, setShowSecurityNotice] = useState(true)
+  const [volume, setVolume] = useState(1)
+  const [isMuted, setIsMuted] = useState(false)
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false)
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const videoPlayerRef = useRef<VideoPlayerRef>(null)
 
-  // Auto-hide security notice after 3 seconds
-  useEffect(() => {
-    if (showSecurityNotice) {
-      const timer = setTimeout(() => {
-        setShowSecurityNotice(false)
-      }, 3000)
-
-      return () => clearTimeout(timer)
-    }
-  }, [showSecurityNotice])
-
   const markMeetingAsEnded = async () => {
     const supabase = getSupabaseBrowser()
-    if (!supabase) return
+    if (!supabase) {
+      console.error("Supabase client not available")
+      return
+    }
 
     try {
-      await supabase.from("meetings").update({ status: "ended" }).eq("meeting_id", meetingId)
+      console.log(`Marking meeting ${meetingId} as ended...`)
+      const { error } = await supabase
+        .from("meetings")
+        .update({ status: "ended" })
+        .eq("meeting_id", meetingId)
+      
+      if (error) {
+        throw error
+      }
+      
+      console.log(`Meeting ${meetingId} successfully marked as ended in database`)
     } catch (error) {
       console.error("Error marking meeting as ended:", error)
     }
   }
 
-  const handleVideoEnd = async () => {
+  const handleVideoEnd = useCallback(async () => {
     console.log("Video ended, ending meeting...")
     setIsEnded(true)
-
+    
     // Marcar a reunião como finalizada no banco de dados
-    const supabase = getSupabaseBrowser()
-    if (supabase) {
-      try {
-        await supabase.from("meetings").update({ status: "ended" }).eq("meeting_id", meetingId)
+    await markMeetingAsEnded()
+  }, [])
 
-        console.log("Meeting marked as ended in database")
-      } catch (error) {
-        console.error("Error marking meeting as ended:", error)
-      }
-    }
-  }
-
-  const handleEndMeeting = () => {
+  const handleEndMeeting = async () => {
+    console.log("User ending meeting...")
+    
+    // Marcar a reunião como finalizada no banco de dados antes de sair
+    await markMeetingAsEnded()
+    
     router.push("/")
   }
 
@@ -75,6 +74,34 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   const toggleChat = () => {
     setIsChatOpen(!isChatOpen)
   }
+
+  // Marcar reunião como encerrada quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      // Só marcar como encerrada se não estiver já encerrada
+      if (!isEnded) {
+        markMeetingAsEnded()
+      }
+    }
+  }, [isEnded])
+
+  const handleVolumeChange = useCallback((newVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, newVolume))
+    setVolume(clampedVolume)
+    if (videoPlayerRef.current) {
+      videoPlayerRef.current.setVolume(clampedVolume)
+    }
+    setIsMuted(clampedVolume === 0)
+  }, [])
+
+  const toggleMute = useCallback(() => {
+    if (isMuted) {
+      const newVolume = volume === 0 ? 0.5 : volume
+      handleVolumeChange(newVolume)
+    } else {
+      handleVolumeChange(0)
+    }
+  }, [isMuted, volume, handleVolumeChange])
 
   if (isEnded) {
     return (
@@ -101,13 +128,14 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
     <div className="flex h-screen flex-col bg-black">
       {/* Header */}
       <header className="flex items-center justify-between bg-black px-4 py-2 text-white">
-        <div className="flex items-center">
-          <h1 className="text-lg font-medium">{meetingId}</h1>
-        </div>
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-300">
-            {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </span>
+          <div className="flex items-center space-x-1">
+            <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-red-500">AO VIVO</span>
+          </div>
+        </div>
+        <div className="flex items-center">
+          <span className="text-lg font-medium">Amanda</span>
         </div>
       </header>
 
@@ -120,21 +148,11 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
             videoUrl={videoUrl}
             initialPosition={initialPosition}
             onVideoEnd={handleVideoEnd}
-            meetingId={meetingId}
-            userName={userName}
+            volume={volume}
           />
 
           {/* User name display */}
           <div className="absolute bottom-4 left-4 text-white">{userName}</div>
-
-          {/* Security notice - Positioned absolutely over the video without affecting it */}
-          {showSecurityNotice && (
-            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 transform z-10">
-              <SecurityNotice onClose={() => {
-                setShowSecurityNotice(false)
-              }} />
-            </div>
-          )}
         </main>
 
         {/* Chat panel */}
@@ -161,6 +179,55 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
           >
             <VideoOff className="h-6 w-6" />
           </Button>
+
+          {/* Volume Control */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-12 w-12 rounded-full bg-gray-600 text-white hover:bg-gray-700"
+              onClick={toggleMute}
+              onMouseEnter={() => setShowVolumeSlider(true)}
+              onMouseLeave={() => setShowVolumeSlider(false)}
+            >
+              {isMuted || volume === 0 ? (
+                <VolumeX className="h-6 w-6 text-white" />
+              ) : (
+                <Volume2 className="h-6 w-6 text-white" />
+              )}
+            </Button>
+            
+            {/* Volume Slider */}
+            {showVolumeSlider && (
+              <div 
+                className="absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-gray-800 p-3 rounded-lg shadow-lg"
+                onMouseEnter={() => setShowVolumeSlider(true)}
+                onMouseLeave={() => setShowVolumeSlider(false)}
+              >
+                <div className="flex flex-col items-center space-y-2">
+                  <span className="text-white text-xs font-medium">{Math.round(volume * 100)}%</span>
+                  <div className="relative">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="w-4 h-20 appearance-none cursor-pointer slider-vertical"
+                      style={{
+                        WebkitAppearance: 'slider-vertical',
+                        outline: 'none',
+                        background: `linear-gradient(to top, #3b82f6 0%, #3b82f6 ${volume * 100}%, #4b5563 ${volume * 100}%, #4b5563 100%)`,
+                        borderRadius: '8px',
+                        border: '1px solid #374151'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <Button
             variant="ghost"

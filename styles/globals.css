@@ -92,3 +92,33 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Estilos para o slider de volume vertical */
+.slider-vertical::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  border: 2px solid #3b82f6;
+}
+
+.slider-vertical::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.slider-vertical::-webkit-slider-track {
+  background: transparent;
+}
+
+.slider-vertical::-moz-range-track {
+  background: transparent;
+}
