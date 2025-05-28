@@ -62,78 +62,60 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     getVolume: () => currentVolume
   }))
 
-  // Função mais direta para iOS
-  const startVideoPlaybackIOS = async () => {
+  // Função mais direta para iOS - versão simplificada
+  const startVideoPlaybackIOS = () => {
     const videoElement = videoRef.current
     if (!videoElement || isEnded) return false
 
-    console.log('=== TENTANDO REPRODUZIR VÍDEO NO iOS ===')
-    console.log('Video element:', videoElement)
+    console.log('=== INICIANDO VÍDEO IOS - VERSÃO SIMPLIFICADA ===')
     console.log('Video src:', videoElement.src)
-    console.log('Video readyState:', videoElement.readyState)
-    console.log('Video duration:', videoElement.duration)
-    console.log('Initial position:', initialPosition)
+    console.log('ReadyState:', videoElement.readyState)
     
     try {
-      // Aguardar o vídeo estar pronto se necessário
-      if (videoElement.readyState < 3) { // HAVE_FUTURE_DATA = 3
-        console.log('Aguardando vídeo carregar mais dados...')
-        await new Promise((resolve) => {
-          const handleCanPlay = () => {
-            videoElement.removeEventListener('canplay', handleCanPlay)
-            resolve(true)
-          }
-          videoElement.addEventListener('canplay', handleCanPlay)
-          
-          // Timeout de segurança
-          setTimeout(() => {
-            videoElement.removeEventListener('canplay', handleCanPlay)
-            resolve(true)
-          }, 3000)
-        })
-      }
-
-      // Primeiro, garantir que o vídeo está na posição correta
+      // Configurar imediatamente
       videoElement.currentTime = initialPosition
-      
-      // No iOS, sempre iniciar mutado
       videoElement.muted = true
       videoElement.volume = 0
       
-      console.log('Configurações aplicadas - muted:', videoElement.muted, 'volume:', videoElement.volume, 'currentTime:', videoElement.currentTime)
+      console.log('Configurações aplicadas:', {
+        currentTime: videoElement.currentTime,
+        muted: videoElement.muted,
+        volume: videoElement.volume
+      })
       
-      // Aguardar um pouco para garantir que a posição foi definida
-      await new Promise(resolve => setTimeout(resolve, 200))
+      // Tentar reproduzir imediatamente (síncrono)
+      const playResult = videoElement.play()
       
-      console.log('Chamando videoElement.play()...')
-      console.log('ReadyState antes do play:', videoElement.readyState)
+      console.log('Play() chamado, resultado:', playResult)
       
-      // Tentar reproduzir
-      const playPromise = videoElement.play()
-      
-      if (playPromise && typeof playPromise.then === 'function') {
-        await playPromise
+      // Se retornou promise, lidar com ela
+      if (playResult && typeof playResult.then === 'function') {
+        playResult
+          .then(() => {
+            console.log('✅ PROMISE RESOLVIDA - VÍDEO REPRODUZINDO')
+            setIsPlaybackBlocked(false)
+            setHasUserInteracted(true)
+            setPlaybackAttempted(true)
+            setIsPlaying(true)
+            setNeedsAudioActivation(true)
+          })
+          .catch((error) => {
+            console.error('❌ PROMISE REJEITADA:', error)
+            setIsPlaybackBlocked(true)
+          })
+      } else {
+        // Play() retornou undefined (sucesso imediato)
+        console.log('✅ PLAY IMEDIATO - SEM PROMISE')
+        setIsPlaybackBlocked(false)
+        setHasUserInteracted(true)
+        setPlaybackAttempted(true)
+        setIsPlaying(true)
+        setNeedsAudioActivation(true)
       }
-      
-      console.log('✅ VÍDEO INICIADO NO iOS (MUTADO) ✅')
-      console.log('Video paused:', videoElement.paused)
-      console.log('Video ended:', videoElement.ended)
-      console.log('Video currentTime:', videoElement.currentTime)
-      
-      setIsPlaybackBlocked(false)
-      setHasUserInteracted(true)
-      setPlaybackAttempted(true)
-      setIsPlaying(true)
-      setNeedsAudioActivation(true)
       
       return true
     } catch (error) {
-      console.error('❌ ERRO AO REPRODUZIR VÍDEO NO iOS:', error)
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        code: error.code
-      })
+      console.error('❌ ERRO IMEDIATO:', error)
       setIsPlaybackBlocked(true)
       return false
     }
@@ -200,7 +182,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   }
 
   // Função para lidar com clique/toque inicial - melhorada para iOS
-  const handleStartVideo = async (e?: React.MouseEvent) => {
+  const handleStartVideo = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
@@ -217,19 +199,25 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     if (needsAudioActivation && isPlaying) {
       // Se já está reproduzindo mas precisa ativar áudio
       console.log('Ativando áudio...')
-      await activateAudio()
+      activateAudio()
       return
     }
     
     if (isPlaybackBlocked || !isPlaying) {
-      // Tentar reproduzir o vídeo
-      console.log('Tentando iniciar reprodução...')
-      const success = await startVideoPlayback(!isIOS && !isSafari)
-      
-      if (!success && (isIOS || isSafari)) {
-        // Se falhou, tentar mutado
-        console.log('Primeira tentativa falhou, tentando mutado...')
-        await startVideoPlayback(false)
+      // Para iOS, usar função específica
+      if (isIOS) {
+        console.log('Usando função específica do iOS...')
+        startVideoPlaybackIOS()
+      } else {
+        // Para outros dispositivos
+        console.log('Tentando reprodução padrão...')
+        startVideoPlayback(!isSafari)
+          .then(success => {
+            if (!success && isSafari) {
+              console.log('Tentativa mutada para Safari...')
+              startVideoPlayback(false)
+            }
+          })
       }
     }
   }
@@ -351,6 +339,29 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
   }, [volume, currentVolume])
 
+  // Debug timer para iOS
+  useEffect(() => {
+    if (!isIOS) return
+
+    const timer = setInterval(() => {
+      const videoElement = videoRef.current
+      if (videoElement) {
+        console.log('🔍 Estado do vídeo iOS:', {
+          paused: videoElement.paused,
+          muted: videoElement.muted,
+          currentTime: videoElement.currentTime,
+          readyState: videoElement.readyState,
+          networkState: videoElement.networkState,
+          isPlaying: !videoElement.paused && !videoElement.ended,
+          stateIsPlaying: isPlaying,
+          stateIsBlocked: isPlaybackBlocked
+        })
+      }
+    }, 2000)
+
+    return () => clearInterval(timer)
+  }, [isIOS, isPlaying, isPlaybackBlocked])
+
   return (
     <div className="relative h-full w-full bg-gray-900">
       {/* Overlay quando reprodução está bloqueada ou não iniciada */}
@@ -358,11 +369,63 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         <div 
           className="absolute inset-0 z-20 flex items-center justify-center bg-gray-900 cursor-pointer transition-opacity"
           onClick={handleStartVideo}
-          onTouchStart={(e) => {
-            // Para iOS, também tratar touch events
+          onTouchEnd={(e) => {
+            // Para iOS, tratar touch de forma síncrona
             if (isIOS) {
               e.preventDefault()
-              handleStartVideo()
+              e.stopPropagation()
+              console.log('=== TOUCH END NO iOS ===')
+              
+              const videoElement = videoRef.current
+              if (videoElement) {
+                console.log('Tentativa direta de play no touch...')
+                videoElement.currentTime = initialPosition
+                videoElement.muted = true
+                
+                const playPromise = videoElement.play()
+                console.log('Play promise:', playPromise)
+                
+                if (playPromise) {
+                  playPromise
+                    .then(() => {
+                      console.log('✅ SUCESSO NO TOUCH!')
+                      setIsPlaybackBlocked(false)
+                      setIsPlaying(true)
+                      setHasUserInteracted(true)
+                      setNeedsAudioActivation(true)
+                    })
+                    .catch(err => {
+                      console.error('❌ ERRO NO TOUCH:', err)
+                      
+                      // Tentar uma segunda abordagem
+                      console.log('Tentando abordagem alternativa...')
+                      setTimeout(() => {
+                        if (videoElement && !videoElement.paused) {
+                          console.log('✅ Vídeo tocando apesar do erro!')
+                          setIsPlaybackBlocked(false)
+                          setIsPlaying(true)
+                          setHasUserInteracted(true)
+                          setNeedsAudioActivation(true)
+                        } else {
+                          console.log('Tentando forçar play novamente...')
+                          videoElement.load()
+                          setTimeout(() => {
+                            videoElement.currentTime = initialPosition
+                            videoElement.muted = true
+                            videoElement.play().catch(console.error)
+                          }, 100)
+                        }
+                      }, 100)
+                    })
+                } else {
+                  // Se não retornou promise, assumir sucesso
+                  console.log('✅ PLAY SEM PROMISE')
+                  setIsPlaybackBlocked(false)
+                  setIsPlaying(true)
+                  setHasUserInteracted(true)
+                  setNeedsAudioActivation(true)
+                }
+              }
             }
           }}
         >
@@ -388,10 +451,19 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         <div 
           className="absolute top-4 right-4 z-10 bg-black bg-opacity-80 rounded-lg p-3 cursor-pointer hover:bg-opacity-90 transition-all"
           onClick={activateAudio}
-          onTouchStart={(e) => {
+          onTouchEnd={(e) => {
             if (isIOS) {
               e.preventDefault()
-              activateAudio()
+              e.stopPropagation()
+              console.log('=== ATIVANDO ÁUDIO TOUCH ===')
+              
+              const videoElement = videoRef.current
+              if (videoElement) {
+                videoElement.muted = false
+                videoElement.volume = currentVolume
+                setNeedsAudioActivation(false)
+                console.log('Áudio ativado via touch')
+              }
             }
           }}
         >
@@ -423,6 +495,9 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         controlsList="nodownload nofullscreen noremoteplayback"
         preload="auto"
         webkit-playsinline="true"
+        x5-playsinline="true"
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="true"
         style={{ touchAction: 'manipulation' }}
       />
     </div>
