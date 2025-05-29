@@ -27,6 +27,12 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const videoPlayerRef = useRef<VideoPlayerRef>(null)
 
+  // Detectar iOS para debug
+  const isIOS = typeof window !== 'undefined' && (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
+
   const markMeetingAsEnded = async () => {
     if (isMarkingAsEnded) {
       console.log("Already marking meeting as ended, skipping...")
@@ -264,7 +270,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
       </div>
 
       {/* Debug info para iOS */}
-      <IOSDebugInfo isVisible={false} />
+      <IOSDebugInfo isVisible={true} />
     </div>
   )
 }
