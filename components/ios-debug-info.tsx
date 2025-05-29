@@ -8,7 +8,7 @@ interface IOSDebugInfoProps {
 
 export default function IOSDebugInfo({ isVisible = false }: IOSDebugInfoProps) {
   const [deviceInfo, setDeviceInfo] = useState<any>({})
-  const [implementationType, setImplementationType] = useState('')
+  const [videoInfo, setVideoInfo] = useState<any>({})
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -33,19 +33,24 @@ export default function IOSDebugInfo({ isVisible = false }: IOSDebugInfoProps) {
 
     setDeviceInfo(info)
 
-    // Determinar tipo de implementação
-    if (info.isIOS) {
-      setImplementationType('iframe converteai.net')
-    } else {
-      setImplementationType('elemento <video> com autoplay')
+    // Detectar capacidades de vídeo
+    const video = document.createElement('video')
+    const videoInfo = {
+      canPlayType_mp4: video.canPlayType('video/mp4'),
+      canPlayType_webm: video.canPlayType('video/webm'),
+      autoplay: video.autoplay,
+      muted: video.muted,
+      playsInline: video.playsInline
     }
+
+    setVideoInfo(videoInfo)
   }, [])
 
   if (!isVisible) return null
 
   return (
     <div className="fixed bottom-4 left-4 z-50 bg-black bg-opacity-90 text-white p-4 rounded-lg text-xs max-w-sm max-h-96 overflow-y-auto">
-      <h3 className="font-bold mb-2 text-green-400">🎬 Video Player Debug</h3>
+      <h3 className="font-bold mb-2 text-green-400">🍎 iOS Debug Info</h3>
       
       <div className="space-y-2">
         <div>
@@ -56,24 +61,21 @@ export default function IOSDebugInfo({ isVisible = false }: IOSDebugInfoProps) {
         </div>
 
         <div>
-          <strong className="text-blue-400">Implementação:</strong>
-          <div className="text-green-300">{implementationType}</div>
-          {deviceInfo.isIOS && (
-            <div className="text-xs text-gray-400 mt-1">
-              Usando iframe para compatibilidade com iOS
-            </div>
-          )}
-        </div>
-
-        <div>
           <strong className="text-blue-400">Tela:</strong>
           <div>Resolução: {deviceInfo.screen?.width}x{deviceInfo.screen?.height}</div>
           <div>Viewport: {deviceInfo.viewport?.width}x{deviceInfo.viewport?.height}</div>
+          <div>Orientação: {deviceInfo.screen?.orientation}</div>
+        </div>
+
+        <div>
+          <strong className="text-blue-400">Vídeo:</strong>
+          <div>MP4: {videoInfo.canPlayType_mp4 || 'Não suportado'}</div>
+          <div>WebM: {videoInfo.canPlayType_webm || 'Não suportado'}</div>
         </div>
 
         <div>
           <strong className="text-blue-400">User Agent:</strong>
-          <div className="break-all text-gray-300 text-xs">{deviceInfo.userAgent}</div>
+          <div className="break-all text-gray-300">{deviceInfo.userAgent}</div>
         </div>
       </div>
     </div>
