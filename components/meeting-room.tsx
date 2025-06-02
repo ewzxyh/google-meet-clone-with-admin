@@ -31,14 +31,27 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   const [isMarkingAsEnded, setIsMarkingAsEnded] = useState(false)
   const [showEndMeetingDialog, setShowEndMeetingDialog] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
+  const [showVolumeWarning, setShowVolumeWarning] = useState(false)
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const videoPlayerRef = useRef<VideoPlayerRef>(null)
 
-  // Detectar se é iOS
+  // Detectar se é iOS e ajustar estado inicial do volume
   useEffect(() => {
     const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
     const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
+    if (isIOSDevice) {
+      setIsMuted(true); // Ícone mutado para iOS
+      setVolume(0); // Volume 0 para iOS
+      setShowVolumeWarning(true); // Mostrar aviso para ativar som
+      const timer = setTimeout(() => {
+        setShowVolumeWarning(false);
+      }, 5000); // Esconder aviso após 5 segundos
+      return () => clearTimeout(timer);
+    } else {
+      setIsMuted(false); // Não mutado para outros dispositivos
+      setVolume(1); // Volume 1 para outros dispositivos
+    }
   }, [])
 
   const markMeetingAsEnded = async () => {
@@ -262,6 +275,11 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                           }, 500)
                         }}
                       >
+                        {isIOS && showVolumeWarning && (
+                          <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 text-xs px-3 py-1 rounded-full shadow-md whitespace-nowrap animate-bounce z-50">
+                            Toque para ativar o som!
+                          </div>
+                        )}
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
@@ -272,6 +290,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                                 e.preventDefault()
                                 e.stopPropagation()
                                 toggleMute()
+                                setShowVolumeWarning(false)
                               }}
                               onMouseDown={(e) => {
                                 e.stopPropagation()

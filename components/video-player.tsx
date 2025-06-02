@@ -25,8 +25,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [currentVolume, setCurrentVolume] = useState(volume)
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false)
-  const [showJoinButton, setShowJoinButton] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
 
   // Detectar iOS
@@ -46,7 +44,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       videoElement.play().then(() => {
         console.log('Vídeo iniciado com sucesso via API!')
         setHasStarted(true)
-        setShowJoinButton(false)
       }).catch((error) => {
         console.error('Erro ao iniciar vídeo via API:', error)
       })
@@ -78,22 +75,34 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     if (isIOS) {
       const timer = setTimeout(() => {
         console.log('Mostrando botão de entrada na reunião para iOS')
-        setShowJoinButton(true)
       }, 500)
       
       return () => clearTimeout(timer)
     }
   }, [isIOS])
 
+  // Para iOS, tentar iniciar automaticamente (mutado) no mount
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (isIOS && videoElement && !hasStarted) {
+      videoElement.muted = true; // Garantir que esteja mutado para autoplay
+      // videoElement.load(); // Removido para testar comportamento de autoplay
+      videoElement.play().then(() => {
+        console.log('iOS: Vídeo iniciado (autoplay muted) no mount');
+        setHasStarted(true); // Definir hasStarted como true
+      }).catch(error => {
+        console.error('iOS: Erro ao tentar autoplay muted no mount:', error);
+      });
+    }
+  }, [isIOS, hasStarted]); // Dependência em isIOS e hasStarted
+
   // Debug dos estados
   useEffect(() => {
     console.log('Estados atuais:', {
       isIOS,
-      isScriptLoaded,
-      showJoinButton,
       hasStarted
     })
-  }, [isIOS, isScriptLoaded, showJoinButton, hasStarted])
+  }, [isIOS, hasStarted])
 
   // Para dispositivos não-iOS, iniciar automaticamente
   useEffect(() => {
@@ -170,18 +179,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   if (isIOS) {
     return (
       <div className="relative h-full w-full bg-gray-900">
-        {/* Thumbnail de fundo apenas quando não iniciou */}
-        {!hasStarted && (
-          <div 
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: 'url(https://images.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6837a8d8357fd7f67137cd7c/thumbnail.jpg)'
-            }}
-          >
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-          </div>
-        )}
-        
         <video
           ref={videoRef}
           className="h-full w-full object-contain"
@@ -193,36 +190,34 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           controls={false}
           disablePictureInPicture
           controlsList="nodownload nofullscreen noremoteplayback"
-          preload="metadata"
+          preload="auto"
           style={{
-            zIndex: showJoinButton && !hasStarted ? 5 : 1
+            zIndex: 1
           }}
           onClick={() => {
+            console.log('Área do vídeo clicada no iOS.');
             const videoElement = videoRef.current;
             if (videoElement) {
-              if (videoElement.muted || videoElement.paused) {
-                videoElement.muted = false; // Desmutar
-                if (videoElement.paused) {
-                  videoElement.play().then(() => {
-                    console.log('Vídeo iniciado e desmutado (via clique iOS)');
-                    setHasStarted(true);
-                    setShowJoinButton(false);
-                  }).catch((error) => {
-                    console.error('Erro ao iniciar/desmutar vídeo (via clique iOS):', error);
-                  });
-                } else {
-                  // Já estava tocando mutado, agora foi desmutado.
-                  console.log('Vídeo desmutado por clique (iOS)');
-                  setHasStarted(true); 
-                  setShowJoinButton(false);
-                }
+              // Sempre tentar desmutar no clique para iOS
+              videoElement.muted = false;
+
+              // Sempre tentar reproduzir no clique para iOS se estiver pausado
+              if (videoElement.paused) {
+                videoElement.play().then(() => {
+                  console.log('Vídeo iniciado e desmutado (via clique iOS)');
+                  setHasStarted(true); // Definir hasStarted como true SÓ SE iniciar
+                }).catch((error) => {
+                  console.error('Erro ao iniciar/desmutar vídeo (via clique iOS):', error);
+                });
+              } else {
+                // Se já estava tocando mutado, apenas desmutar.
+                console.log('Vídeo desmutado por clique (iOS)');
               }
             }
           }}
           onPlay={() => {
             console.log('Vídeo iniciou - iOS')
             setHasStarted(true)
-            setShowJoinButton(false)
           }}
           onEnded={() => {
             if (!isEnded) {
