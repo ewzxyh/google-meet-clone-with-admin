@@ -35,17 +35,48 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
   useImperativeHandle(ref, () => ({
     play: () => {
-      const videoElement = videoRef.current
-      if (videoElement) {
-        videoElement.play()
+      if (isIOS) {
+        // Para iOS com ConvertAI player
+        const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+        const video = player?.querySelector('video') as HTMLVideoElement
+        if (video) {
+          video.play()
+        }
+      } else {
+        // Para outros dispositivos
+        const videoElement = videoRef.current
+        if (videoElement) {
+          videoElement.play()
+        }
       }
     },
     setVolume: (vol: number) => {
-      const videoElement = videoRef.current
-      if (videoElement) {
-        const clampedVolume = Math.max(0, Math.min(1, vol))
-        setCurrentVolume(clampedVolume)
-        videoElement.volume = clampedVolume
+      const clampedVolume = Math.max(0, Math.min(1, vol))
+      setCurrentVolume(clampedVolume)
+      
+      if (isIOS) {
+        // Para iOS com ConvertAI player
+        const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+        const video = player?.querySelector('video') as HTMLVideoElement
+        if (video) {
+          video.volume = clampedVolume
+          console.log(`Volume iOS ajustado para: ${Math.round(clampedVolume * 100)}%`)
+        }
+        
+        // Tentar também via API do ConvertAI se disponível
+        if ((window as any).smartplayer && (window as any).smartplayer.instances) {
+          const instance = (window as any).smartplayer.instances['6837a8d8357fd7f67137cd7c']
+          if (instance && instance.setVolume) {
+            instance.setVolume(clampedVolume)
+            console.log(`Volume ConvertAI ajustado para: ${Math.round(clampedVolume * 100)}%`)
+          }
+        }
+      } else {
+        // Para outros dispositivos
+        const videoElement = videoRef.current
+        if (videoElement) {
+          videoElement.volume = clampedVolume
+        }
       }
     },
     getVolume: () => currentVolume
@@ -74,9 +105,16 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       
       // Configurações para esconder controles e desabilitar pause
       setTimeout(() => {
-        // Tentar esconder barra de progresso e controles de tempo
-        const playerElement = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
-        if (playerElement) {
+        const mainPlayer = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+        
+        if (mainPlayer) {
+          // Aplicar volume inicial quando o player carrega
+          const videoElement = mainPlayer.querySelector('video') as HTMLVideoElement
+          if (videoElement) {
+            videoElement.volume = currentVolume
+            console.log(`Volume inicial iOS aplicado: ${Math.round(currentVolume * 100)}%`)
+          }
+          
           // Adicionar CSS para esconder controles
           const style = document.createElement('style')
           style.textContent = `
@@ -93,7 +131,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             #vid_6837a8d8357fd7f67137cd7c .vjs-duration,
             #vid_6837a8d8357fd7f67137cd7c .vjs-remaining-time,
             #vid_6837a8d8357fd7f67137cd7c .vjs-control-bar,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-control-bar {
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-control-bar,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume {
               display: none !important;
               visibility: hidden !important;
               opacity: 0 !important;
@@ -116,32 +155,60 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           `
           document.head.appendChild(style)
           
+          // Função para automaticamente continuar vídeo sem mostrar popup
+          const autoResumeVideo = () => {
+            // Tentar via API do ConvertAI
+            if ((window as any).smartplayer && (window as any).smartplayer.instances) {
+              const instance = (window as any).smartplayer.instances['6837a8d8357fd7f67137cd7c']
+              if (instance) {
+                // Desabilitar popup de resume se possível
+                if (instance.setResumeMode) {
+                  instance.setResumeMode(false)
+                }
+                // Continuar reprodução automaticamente
+                if (instance.play) {
+                  instance.play()
+                  console.log('Vídeo continuado automaticamente via ConvertAI API')
+                }
+              }
+            }
+            
+            // Fallback: tentar via elemento de vídeo direto
+            const videoElement = mainPlayer.querySelector('video') as HTMLVideoElement
+            if (videoElement && videoElement.paused) {
+              videoElement.play().catch(console.error)
+              console.log('Vídeo continuado automaticamente via elemento HTML')
+            }
+          }
+          
+          // Executar auto-resume após um delay
+          setTimeout(autoResumeVideo, 1500)
+          
           // Prevenir pause no vídeo de forma mais robusta
-          const video = playerElement.querySelector('video')
-          if (video) {
+          if (videoElement) {
             let isPlaying = false
             
             // Listener para detectar quando vídeo começa
-            video.addEventListener('play', () => {
+            videoElement.addEventListener('play', () => {
               isPlaying = true
               console.log('Vídeo iniciado - prevenção de pause ativada')
             })
             
             // Prevenir pause
-            video.addEventListener('pause', (e) => {
-              if (isPlaying && !video.ended) {
+            videoElement.addEventListener('pause', (e: Event) => {
+              if (isPlaying && !videoElement.ended) {
                 console.log('Tentativa de pause detectada - forçando play')
                 e.preventDefault()
                 setTimeout(() => {
-                  if (video.paused && !video.ended) {
-                    video.play().catch(console.error)
+                  if (videoElement.paused && !videoElement.ended) {
+                    videoElement.play().catch(console.error)
                   }
                 }, 10)
               }
             })
             
             // Prevenir cliques diretos no vídeo
-            video.addEventListener('click', (e) => {
+            videoElement.addEventListener('click', (e: Event) => {
               if (isPlaying) {
                 e.preventDefault()
                 e.stopPropagation()
@@ -171,27 +238,43 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 if (element.classList?.contains('smartplayer-controller-mask') || 
                     element.classList?.contains('smartplayer-fake-bar') ||
                     element.classList?.contains('smartplayer-control-bar') ||
-                    element.classList?.contains('vjs-control-bar')) {
+                    element.classList?.contains('vjs-control-bar') ||
+                    element.classList?.contains('smartplayer-resume')) {
                   (element as HTMLElement).style.display = 'none'
                   ;(element as HTMLElement).style.visibility = 'hidden'
                   ;(element as HTMLElement).style.opacity = '0'
+                  console.log('Elemento de controle escondido:', element.className)
                 }
                 
                 // Esconder controles dentro do elemento adicionado
-                const controlElements = element.querySelectorAll?.('.smartplayer-controller-mask, .smartplayer-fake-bar, .smartplayer-control-bar, .vjs-control-bar')
+                const controlElements = element.querySelectorAll?.('.smartplayer-controller-mask, .smartplayer-fake-bar, .smartplayer-control-bar, .vjs-control-bar, .smartplayer-resume')
                 controlElements?.forEach((el: Element) => {
                   (el as HTMLElement).style.display = 'none'
                   ;(el as HTMLElement).style.visibility = 'hidden'
                   ;(el as HTMLElement).style.opacity = '0'
+                  console.log('Controle interno escondido:', el.className)
                 })
+                
+                // Se for especificamente o popup de resume, tentar continuar automaticamente
+                if (element.classList?.contains('smartplayer-resume')) {
+                  console.log('Popup de resume detectado - continuando automaticamente')
+                  setTimeout(() => {
+                    // Tentar clicar no botão de continuar automaticamente
+                    const continueButton = element.querySelector('.smartplayer-resume__play')
+                    if (continueButton) {
+                      (continueButton as HTMLElement).click()
+                      console.log('Botão continuar clicado automaticamente')
+                    }
+                  }, 100)
+                }
               }
             })
           })
         })
         
-        const playerElement = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
-        if (playerElement) {
-          observer.observe(playerElement, { 
+        const observerTarget = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+        if (observerTarget) {
+          observer.observe(observerTarget, { 
             childList: true, 
             subtree: true 
           })
@@ -218,6 +301,38 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       }
     }
   }, [isIOS])
+
+  // Sincronizar volume quando prop volume mudar
+  useEffect(() => {
+    if (volume !== currentVolume) {
+      setCurrentVolume(volume)
+      
+      if (isIOS) {
+        // Para iOS com ConvertAI player
+        const syncPlayer = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+        const syncVideo = syncPlayer?.querySelector('video') as HTMLVideoElement
+        if (syncVideo) {
+          syncVideo.volume = volume
+          console.log(`Volume iOS sincronizado para: ${Math.round(volume * 100)}%`)
+        }
+        
+        // Tentar também via API do ConvertAI se disponível
+        if ((window as any).smartplayer && (window as any).smartplayer.instances) {
+          const instance = (window as any).smartplayer.instances['6837a8d8357fd7f67137cd7c']
+          if (instance && instance.setVolume) {
+            instance.setVolume(volume)
+            console.log(`Volume ConvertAI sincronizado para: ${Math.round(volume * 100)}%`)
+          }
+        }
+      } else {
+        // Para outros dispositivos
+        const videoElement = videoRef.current
+        if (videoElement) {
+          videoElement.volume = volume
+        }
+      }
+    }
+  }, [volume, currentVolume, isIOS])
 
   useEffect(() => {
     const videoElement = videoRef.current

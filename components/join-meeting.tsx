@@ -21,6 +21,7 @@ interface JoinMeetingProps {
 export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
   const [name, setName] = useState("")
   const [showPermissionModal, setShowPermissionModal] = useState(false)
+  const [showNameError, setShowNameError] = useState(false)
   const router = useRouter()
 
   // Show the permission modal when component mounts
@@ -28,10 +29,34 @@ export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
     setShowPermissionModal(true)
   }, [])
 
+  // Function to capitalize first letter and validate input
+  const handleNameChange = (value: string) => {
+    // Remove extra spaces and limit to 60 characters
+    let cleanValue = value.slice(0, 60)
+    
+    // Capitalize first letter if there's text
+    if (cleanValue.length > 0) {
+      cleanValue = cleanValue.charAt(0).toUpperCase() + cleanValue.slice(1)
+    }
+    
+    setName(cleanValue)
+    
+    // Hide error when user starts typing and has valid name
+    if (showNameError && cleanValue.trim().length >= 3) {
+      setShowNameError(false)
+    }
+  }
+
+  // Check if name is valid (at least 3 letters)
+  const isNameValid = name.trim().length >= 3
+
   const handleJoinMeeting = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name.trim()) return
+    if (!isNameValid) {
+      setShowNameError(true)
+      return
+    }
 
     const supabase = getSupabaseBrowser()
 
@@ -188,19 +213,23 @@ export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
                       <Input
                         type="text"
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={(e) => handleNameChange(e.target.value)}
                         placeholder="Seu nome"
                         className="w-full h-10 sm:h-12 text-sm sm:text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md text-center"
                         maxLength={60}
                         required
                       />
-                      <div className="mt-2 text-right text-xs text-gray-500">{name.length}/60</div>
+                      <div className="mt-2 flex justify-between items-center text-xs">
+                        <span className="text-red-500">
+                          {showNameError ? 'O nome deve ter pelo menos 3 letras' : ''}
+                        </span>
+                        <span className="text-gray-500">{name.length}/60</span>
+                      </div>
                     </div>
 
                     <Button
                       type="submit"
                       className="w-full h-10 sm:h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-full text-sm sm:text-base"
-                      disabled={!name.trim()}
                     >
                       Pedir para participar
                     </Button>

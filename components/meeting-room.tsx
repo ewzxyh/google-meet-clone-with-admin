@@ -27,6 +27,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
   const [showVolumeSlider, setShowVolumeSlider] = useState(false)
+  const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isMarkingAsEnded, setIsMarkingAsEnded] = useState(false)
   const [showEndMeetingDialog, setShowEndMeetingDialog] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
@@ -108,6 +109,11 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   // Marcar reunião como encerrada quando o componente for desmontado
   useEffect(() => {
     return () => {
+      // Limpar timeout do volume slider
+      if (volumeTimeoutRef.current) {
+        clearTimeout(volumeTimeoutRef.current)
+      }
+      
       // Só marcar como encerrada se não estiver já encerrada e não estiver no processo
       if (!isEnded && !isMarkingAsEnded) {
         console.log("Component unmounting, marking meeting as ended...")
@@ -136,20 +142,36 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
 
   if (isEnded) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-gray-900 text-white">
-        <div className="mb-8 text-center">
-          <h1 className="mb-2 text-3xl font-bold">Reunião Encerrada</h1>
-          <p className="text-gray-400">A reunião {meetingId} foi encerrada</p>
-        </div>
+      <div className="flex h-screen flex-col bg-white">
+        {/* Header com logo */}
+        <header className="bg-white px-4 sm:px-6 py-3">
+          <div className="flex items-center">
+            <Image
+              src="/videozapp.webp"
+              alt="VideoZapp"
+              width={180}
+              height={50}
+              className="h-10 sm:h-14 w-auto"
+            />
+          </div>
+        </header>
 
-        <div className="flex flex-col items-center space-y-4">
-          <p className="max-w-md text-center text-gray-400">
-            Esta reunião foi concluída e não pode ser reiniciada. Obrigado por participar.
-          </p>
+        {/* Conteúdo principal */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="mb-8 text-center">
+            <h1 className="mb-2 text-3xl font-bold text-gray-900">Reunião Encerrada</h1>
+            <p className="text-gray-600">A reunião {meetingId} foi encerrada</p>
+          </div>
 
-          <Button className="mt-4 bg-blue-600 hover:bg-blue-700" onClick={handleReturnHome}>
-            Voltar para a página inicial
-          </Button>
+          <div className="flex flex-col items-center space-y-4">
+            <p className="max-w-md text-center text-gray-600">
+              Esta reunião foi concluída e não pode ser reiniciada. Obrigado por participar.
+            </p>
+
+            <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleReturnHome}>
+              Voltar para a página inicial
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -177,10 +199,10 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
         <main className="flex-1 flex bg-white">
           <div className="flex w-full justify-center items-center">
             {/* Layout responsivo - vertical em mobile, horizontal em desktop */}
-            <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto">
+            <div className="flex flex-col lg:flex-row w-full max-w-6xl mx-auto">
               {/* Video principal da Amanda */}
-              <div className="flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-white flex-1">
-                <div className="w-full max-w-2xl">
+              <div className="flex items-center justify-center p-4 sm:p-2 bg-white flex-1">
+                <div className="w-full max-w-3xl">
                   <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg">
                     <div className="aspect-[16/9] relative">
                       {/* Header do vídeo com nome e status */}
@@ -203,45 +225,159 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                         isEnded={isEnded}
                       />
                       
-                      {/* Overlay para iOS para impedir pause */}
+                      {/* Overlay para iOS para impedir pause - cobre toda área exceto controles */}
                       {isIOS && (
-                        <div 
-                          className="absolute inset-0 z-20 bg-transparent"
-                          onTouchStart={(e) => e.preventDefault()}
-                          onTouchEnd={(e) => e.preventDefault()}
-                          onTouchMove={(e) => e.preventDefault()}
-                          style={{ pointerEvents: 'auto' }}
-                        />
+                        <>
+                          {/* Overlay principal que cobre toda a área do vídeo */}
+                          <div 
+                            className="absolute inset-0 z-10 bg-transparent"
+                            onTouchStart={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                            onTouchEnd={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                            onTouchMove={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                            style={{ 
+                              pointerEvents: 'auto',
+                              cursor: 'default'
+                            }}
+                          />
+                          {/* Área liberada para os controles */}
+                          <div 
+                            className="absolute bottom-0 left-0 right-0 z-20"
+                            style={{ 
+                              height: '120px',
+                              pointerEvents: 'none'
+                            }}
+                          />
+                        </>
                       )}
                     </div>
 
                     {/* Controls at bottom - apenas volume e outros controles */}
-                    <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-4">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon"
-                            className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-blue-500 hover:bg-blue-600 text-white border-0 shadow-lg"
-                            onClick={toggleMute}
-                          >
-                            {isMuted || volume === 0 ? (
-                              <VolumeX className="h-4 w-4 sm:h-6 sm:w-6" />
-                            ) : (
-                              <Volume2 className="h-4 w-4 sm:h-6 sm:w-6" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="bg-gray-800 text-white text-xs px-2 py-1 rounded">
-                          <p>{isMuted ? "Ativar som" : "Silenciar"}</p>
-                        </TooltipContent>
-                      </Tooltip>
+                    <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-4 z-30">
+                      {/* Controle de Volume com Slider */}
+                      <div 
+                        className="relative"
+                        onMouseEnter={() => {
+                          if (volumeTimeoutRef.current) {
+                            clearTimeout(volumeTimeoutRef.current)
+                          }
+                          setShowVolumeSlider(true)
+                        }}
+                        onMouseLeave={() => {
+                          // Delay para permitir movimento do mouse para o slider
+                          volumeTimeoutRef.current = setTimeout(() => {
+                            setShowVolumeSlider(false)
+                          }, 500)
+                        }}
+                      >
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon"
+                              className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-blue-500 hover:bg-blue-600 text-white border-0 shadow-lg relative z-50"
+                              onClick={(e) => {
+                                console.log('Botão de volume clicado!')
+                                e.preventDefault()
+                                e.stopPropagation()
+                                toggleMute()
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation()
+                              }}
+                              onTouchStart={(e) => {
+                                e.stopPropagation()
+                              }}
+                              style={{ pointerEvents: 'auto' }}
+                            >
+                              {isMuted || volume === 0 ? (
+                                <VolumeX className="h-4 w-4 sm:h-6 sm:w-6" />
+                              ) : (
+                                <Volume2 className="h-4 w-4 sm:h-6 sm:w-6" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="bg-gray-800 text-white text-xs px-2 py-1 rounded">
+                            <p>{isMuted ? "Ativar som" : "Silenciar"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        
+                        {/* Volume Slider */}
+                        {showVolumeSlider && (
+                          <>
+                            {/* Área invisível de ponte entre botão e slider */}
+                            <div 
+                              className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-20 bg-transparent z-39"
+                              onMouseEnter={() => {
+                                if (volumeTimeoutRef.current) {
+                                  clearTimeout(volumeTimeoutRef.current)
+                                }
+                                setShowVolumeSlider(true)
+                              }}
+                            />
+                            
+                            <div 
+                              className="absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-gray-800 p-3 rounded-lg shadow-lg z-40"
+                              onMouseEnter={() => {
+                                if (volumeTimeoutRef.current) {
+                                  clearTimeout(volumeTimeoutRef.current)
+                                }
+                                setShowVolumeSlider(true)
+                              }}
+                              onMouseLeave={() => {
+                                volumeTimeoutRef.current = setTimeout(() => {
+                                  setShowVolumeSlider(false)
+                                }, 300)
+                              }}
+                            >
+                              <div className="flex flex-col items-center space-y-2">
+                                <span className="text-white text-xs font-medium">{Math.round(volume * 100)}%</span>
+                                <div className="relative">
+                                  <input
+                                     type="range"
+                                     min="0"
+                                     max="1"
+                                     step="0.01"
+                                     value={volume}
+                                     onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                                     className="w-4 h-20 appearance-none cursor-pointer"
+                                     style={{
+                                       WebkitAppearance: 'slider-vertical',
+                                       outline: 'none',
+                                       background: `linear-gradient(to top, #3b82f6 0%, #3b82f6 ${volume * 100}%, #4b5563 ${volume * 100}%, #4b5563 100%)`,
+                                       borderRadius: '8px',
+                                       border: '1px solid #374151'
+                                     } as React.CSSProperties}
+                                   />
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
 
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             size="icon"
-                            className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-gray-500 hover:bg-gray-600 text-white border-0 shadow-lg"
+                            className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-gray-500 hover:bg-gray-600 text-white border-0 shadow-lg relative z-50"
                             disabled
+                            style={{ pointerEvents: 'auto' }}
                           >
                             <MessageCircle className="h-4 w-4 sm:h-6 sm:w-6" />
                           </Button>
@@ -255,8 +391,9 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                         <TooltipTrigger asChild>
                           <Button
                             size="icon"
-                            className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-gray-600 hover:bg-gray-700 text-white border-0 shadow-lg"
+                            className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-gray-600 hover:bg-gray-700 text-white border-0 shadow-lg relative z-50"
                             disabled
+                            style={{ pointerEvents: 'auto' }}
                           >
                             <Users className="h-4 w-4 sm:h-6 sm:w-6" />
                           </Button>
@@ -270,8 +407,9 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                         <TooltipTrigger asChild>
                           <Button
                             size="icon"
-                            className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-gray-600 hover:bg-gray-700 text-white border-0 shadow-lg"
+                            className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-gray-600 hover:bg-gray-700 text-white border-0 shadow-lg relative z-50"
                             disabled
+                            style={{ pointerEvents: 'auto' }}
                           >
                             <Settings className="h-4 w-4 sm:h-6 sm:w-6" />
                           </Button>
@@ -358,7 +496,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                   </div>
 
                   {/* Bottom badges - aligned left, responsive */}
-                  <div className="flex flex-wrap items-start justify-start gap-2 sm:gap-3">
+                  <div className="flex flex-nowrap items-start justify-start gap-2 sm:gap-3">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Badge variant="outline" className="text-xs px-2 sm:px-3 py-1 bg-white border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer flex items-center space-x-1">
