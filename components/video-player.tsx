@@ -231,26 +231,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           }}
         />
         
-        {/* Botão visual (não funcional) - apenas aparência */}
-        {showJoinButton && !hasStarted && (
-          <div 
-            className="absolute inset-0 flex items-center justify-center"
-            style={{ 
-              zIndex: 3, 
-              pointerEvents: 'none' // Permite cliques passarem através
-            }}
-          >
-            <div className="text-center">
-              <div
-                className="bg-blue-600 text-white font-semibold py-4 px-8 rounded-lg shadow-lg"
-                style={{ pointerEvents: 'none' }}
-              >
-                Confirmar Entrada na Reunião
-              </div>
-            </div>
-          </div>
-        )}
-        
         {/* Overlay para prevenir pause APENAS após o vídeo iniciar */}
         {hasStarted && (
           <div 
