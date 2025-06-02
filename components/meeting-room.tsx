@@ -224,48 +224,6 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                         volume={volume}
                         isEnded={isEnded}
                       />
-                      
-                      {/* Overlay para iOS para impedir pause - cobre toda área exceto controles */}
-                      {isIOS && (
-                        <>
-                          {/* Overlay principal que cobre toda a área do vídeo */}
-                          <div 
-                            className="absolute inset-0 z-10 bg-transparent"
-                            onTouchStart={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                            }}
-                            onTouchEnd={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                            }}
-                            onTouchMove={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                            }}
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                            }}
-                            onMouseDown={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                            }}
-                            style={{ 
-                              pointerEvents: 'auto',
-                              cursor: 'default'
-                            }}
-                          />
-                          {/* Área liberada para os controles */}
-                          <div 
-                            className="absolute bottom-0 left-0 right-0 z-20"
-                            style={{ 
-                              height: '120px',
-                              pointerEvents: 'none'
-                            }}
-                          />
-                        </>
-                      )}
                     </div>
 
                     {/* Controls at bottom - apenas volume e outros controles */}

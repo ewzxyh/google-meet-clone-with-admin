@@ -35,31 +35,21 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   )
 
-  // Função para iniciar o vídeo (chamada pelo botão ou pela API)
+  // Função para iniciar o vídeo (chamada pela API externa)
   const startVideo = () => {
-    console.log('startVideo chamado, isIOS:', isIOS)
+    console.log('startVideo chamado via API, isIOS:', isIOS)
     
     const videoElement = videoRef.current
     if (videoElement) {
-      console.log('Elemento de vídeo encontrado, tentando reproduzir...')
+      console.log('Tentando iniciar vídeo via API...')
       
       videoElement.play().then(() => {
-        console.log('Vídeo iniciado com sucesso!')
+        console.log('Vídeo iniciado com sucesso via API!')
         setHasStarted(true)
         setShowJoinButton(false)
       }).catch((error) => {
-        console.error('Erro ao iniciar vídeo:', error)
-        // Tentar novamente após um delay
-        setTimeout(() => {
-          videoElement.play().then(() => {
-            console.log('Vídeo iniciado com sucesso na segunda tentativa!')
-            setHasStarted(true)
-            setShowJoinButton(false)
-          }).catch(console.error)
-        }, 500)
+        console.error('Erro ao iniciar vídeo via API:', error)
       })
-    } else {
-      console.log('Elemento de vídeo não encontrado')
     }
   }
 
@@ -133,17 +123,49 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       }
     }
 
+    const handlePause = () => {
+      if (hasStarted && !videoElement.ended) {
+        console.log('Tentativa de pause detectada - forçando play')
+        setTimeout(() => {
+          if (videoElement.paused && !videoElement.ended) {
+            videoElement.play().catch(console.error)
+          }
+        }, 10)
+      }
+    }
+
     videoElement.addEventListener("ended", handleEnded)
+    videoElement.addEventListener("pause", handlePause)
     
     return () => {
       videoElement.removeEventListener("ended", handleEnded)
+      videoElement.removeEventListener("pause", handlePause)
     }
-  }, [onVideoEnd, isEnded])
+  }, [onVideoEnd, isEnded, hasStarted])
 
-  // Para iOS: usar vídeo HTML5 normal com botão de entrada
+  // Prevenir teclas que podem pausar o vídeo
+  useEffect(() => {
+    if (!hasStarted) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault()
+        console.log('Tecla espaço bloqueada')
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [hasStarted])
+
+  // Para iOS: usar vídeo HTML5 normal com botão visual
   if (isIOS) {
     return (
       <div className="relative h-full w-full bg-gray-900">
+        {/* Thumbnail de fundo apenas quando não iniciou */}
         {!hasStarted && (
           <div 
             className="absolute inset-0 bg-cover bg-center"
@@ -157,7 +179,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         
         <video
           ref={videoRef}
-          className={`h-full w-full object-contain ${hasStarted ? 'block' : 'hidden'}`}
+          className="h-full w-full object-contain"
           src={videoUrl}
           playsInline
           muted={false}
@@ -165,6 +187,29 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           disablePictureInPicture
           controlsList="nodownload nofullscreen noremoteplayback"
           preload="metadata"
+          style={{ 
+            zIndex: showJoinButton && !hasStarted ? 5 : 1 
+          }}
+          onClick={() => {
+            if (!hasStarted) {
+              console.log('Clique no vídeo detectado - tentando iniciar')
+              const videoElement = videoRef.current
+              if (videoElement) {
+                videoElement.play().then(() => {
+                  console.log('Vídeo iniciado com sucesso!')
+                  setHasStarted(true)
+                  setShowJoinButton(false)
+                }).catch((error) => {
+                  console.error('Erro ao iniciar vídeo:', error)
+                })
+              }
+            }
+          }}
+          onPlay={() => {
+            console.log('Vídeo iniciou - iOS')
+            setHasStarted(true)
+            setShowJoinButton(false)
+          }}
           onEnded={() => {
             if (!isEnded) {
               onVideoEnd()
@@ -172,25 +217,51 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           }}
         />
         
-        {/* Botão de Confirmar Entrada na Reunião */}
+        {/* Botão visual (não funcional) - apenas aparência */}
         {showJoinButton && !hasStarted && (
           <div 
-            className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            style={{ zIndex: 9999, pointerEvents: 'auto' }}
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ 
+              zIndex: 3, 
+              pointerEvents: 'none' // Permite cliques passarem através
+            }}
           >
             <div className="text-center">
-              <button
-                onClick={() => {
-                  console.log('Botão clicado!')
-                  startVideo()
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-8 rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300"
-                style={{ pointerEvents: 'auto' }}
+              <div
+                className="bg-blue-600 text-white font-semibold py-4 px-8 rounded-lg shadow-lg"
+                style={{ pointerEvents: 'none' }}
               >
                 Confirmar Entrada na Reunião
-              </button>
+              </div>
             </div>
           </div>
+        )}
+        
+        {/* Overlay para prevenir pause APENAS após o vídeo iniciar */}
+        {hasStarted && (
+          <div 
+            className="absolute inset-0"
+            style={{ 
+              zIndex: 20, 
+              pointerEvents: 'auto',
+              background: 'transparent',
+              touchAction: 'none'
+            }}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              console.log('Clique no overlay bloqueado - vídeo não pode ser pausado')
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation()
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation()
+            }}
+            onTouchMove={(e) => {
+              e.stopPropagation()
+            }}
+          />
         )}
       </div>
     )
