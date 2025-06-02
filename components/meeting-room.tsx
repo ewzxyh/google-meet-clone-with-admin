@@ -140,6 +140,24 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
     }
   }, [isMuted, volume, handleVolumeChange])
 
+  // Efeito para encerrar a reunião automaticamente após um tempo específico
+  useEffect(() => {
+    const autoEndDurationMs = (10 * 60 + 52) * 1000 // 10 minutos e 52 segundos em milissegundos
+    
+    console.log(`Reunião programada para encerrar automaticamente em ${autoEndDurationMs / 1000} segundos.`) 
+
+    const autoEndTimer = setTimeout(() => {
+      console.log("Tempo limite da reunião atingido, encerrando automaticamente...")
+      handleVideoEnd() // Chama a função que marca a reunião como encerrada e redireciona
+    }, autoEndDurationMs)
+
+    // Limpar o timer se o componente for desmontado antes do tempo
+    return () => {
+      console.log("Limpando timer de encerramento automático da reunião.")
+      clearTimeout(autoEndTimer)
+    }
+  }, [handleVideoEnd]) // Dependência em handleVideoEnd para garantir que a função mais recente seja usada
+
   if (isEnded) {
     return (
       <div className="flex h-screen flex-col bg-white">

@@ -62,6 +62,11 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       const videoElement = videoRef.current
       if (videoElement) {
         videoElement.volume = clampedVolume
+        if (clampedVolume > 0 && videoElement.muted) {
+          videoElement.muted = false // Explicitamente desmutar se o volume for > 0 e estiver mutado
+        } else if (clampedVolume === 0 && !videoElement.muted) {
+          videoElement.muted = true // Explicitamente mutar se o volume for 0 e não estiver mutado
+        }
         console.log(`Volume ajustado para: ${Math.round(clampedVolume * 100)}%`)
       }
     },
@@ -182,26 +187,35 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           className="h-full w-full object-contain"
           src={videoUrl}
           playsInline
-          muted={false}
+          autoPlay
+          muted={true}
+          loop
           controls={false}
           disablePictureInPicture
           controlsList="nodownload nofullscreen noremoteplayback"
           preload="metadata"
-          style={{ 
-            zIndex: showJoinButton && !hasStarted ? 5 : 1 
+          style={{
+            zIndex: showJoinButton && !hasStarted ? 5 : 1
           }}
           onClick={() => {
-            if (!hasStarted) {
-              console.log('Clique no vídeo detectado - tentando iniciar')
-              const videoElement = videoRef.current
-              if (videoElement) {
-                videoElement.play().then(() => {
-                  console.log('Vídeo iniciado com sucesso!')
-                  setHasStarted(true)
-                  setShowJoinButton(false)
-                }).catch((error) => {
-                  console.error('Erro ao iniciar vídeo:', error)
-                })
+            const videoElement = videoRef.current;
+            if (videoElement) {
+              if (videoElement.muted || videoElement.paused) {
+                videoElement.muted = false; // Desmutar
+                if (videoElement.paused) {
+                  videoElement.play().then(() => {
+                    console.log('Vídeo iniciado e desmutado (via clique iOS)');
+                    setHasStarted(true);
+                    setShowJoinButton(false);
+                  }).catch((error) => {
+                    console.error('Erro ao iniciar/desmutar vídeo (via clique iOS):', error);
+                  });
+                } else {
+                  // Já estava tocando mutado, agora foi desmutado.
+                  console.log('Vídeo desmutado por clique (iOS)');
+                  setHasStarted(true); 
+                  setShowJoinButton(false);
+                }
               }
             }
           }}
