@@ -1,0 +1,140 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Diretrizes do Projeto - Google Meet Clone
+
+Este documento define os padrões de codificação, convenções e melhores práticas para este projeto de clone do Google Meet.
+
+## Stack Tecnológica
+
+- **Linguagem:** TypeScript exclusivamente para todo o código
+- **Framework:** Next.js App Router (versão 15.2.4+)
+- **UI Libraries:** Shadcn UI, Radix UI, e Tailwind CSS
+- **Package Manager:** Bun (`bun`) - NÃO usar npm ou yarn
+- **Ícones:** Lucide React
+
+## Estrutura do Projeto
+
+### Arquivos de Configuração Principais
+- [package.json](mdc:package.json) - Dependências e scripts do projeto
+- [components.json](mdc:components.json) - Configuração do Shadcn UI
+- [tsconfig.json](mdc:tsconfig.json) - Configuração do TypeScript
+- [tailwind.config.ts](mdc:tailwind.config.ts) - Configuração do Tailwind CSS
+
+### Diretórios
+- `app/` - Roteamento do Next.js App Router
+- `components/` - Componentes React reutilizáveis
+- `components/ui/` - Componentes do Shadcn UI
+- `hooks/` - Custom hooks React
+- `lib/` - Utilitários e configurações
+- `public/` - Assets estáticos
+- `styles/` - Arquivos de estilo global
+
+## Convenções de Código
+
+### Imports e Aliases
+- **SEMPRE** use o alias `@/` para imports internos
+- Exemplo: `import { Button } from "@/components/ui/button"`
+- Configurado em [tsconfig.json](mdc:tsconfig.json) e [components.json](mdc:components.json)
+
+### Estrutura de Componentes
+```typescript
+// Exemplo de estrutura de componente
+import { Component } from "@/components/ui/component"
+import { useHook } from "@/hooks/useHook"
+import { utility } from "@/lib/utils"
+
+interface ComponentProps {
+  // Props tipadas
+}
+
+export default function MyComponent({ }: ComponentProps) {
+  // Lógica do componente
+  return (
+    // JSX
+  )
+}
+```
+
+### Estilização
+- Use Tailwind CSS para estilização
+- Prefira componentes do Shadcn UI quando disponíveis
+- Mantenha consistência com o design system configurado
+
+## Ambiente de Desenvolvimento
+
+### ⚠️ IMPORTANTE - Servidor de Desenvolvimento
+- **NÃO** inicialize um novo servidor de desenvolvimento
+- Use o servidor existente em `localhost:3000`
+- Script disponível: `bun dev --turbo`
+
+### Comandos Disponíveis
+- `bun dev` - Executar em modo desenvolvimento (com Turbopack)
+- `bun build` - Build de produção
+- `bun start` - Executar build de produção
+- `bun lint` - Linting do código
+
+## Comunicação e Documentação
+
+### Idioma
+- **SEMPRE** explique o código em **Português**
+- Comentários no código podem ser em inglês ou português
+- Documentação e mensagens de commit em português
+
+## Ferramentas de Debug
+
+### Ferramentas MCP Disponíveis
+Use as seguintes ferramentas para debugging:
+- `getConsoleLogs` - Obter logs do console
+- `getConsoleErrors` - Obter erros do console  
+- `getNetworkErrors` - Obter erros de rede
+- `getNetworkLogs` - Obter logs de rede
+- `takeScreenshot` - Capturar screenshot
+- `getSelectedElement` - Obter elemento selecionado
+- `wipeLogs` - Limpar logs
+
+## Boas Práticas
+
+### TypeScript
+- Sempre tipagem estrita habilitada
+- Use interfaces para props de componentes
+- Evite `any` - prefira tipos específicos
+
+### React
+- Use hooks funcionais (useState, useEffect, etc.)
+- Implemente custom hooks quando apropriado
+- Siga padrões de composição de componentes
+
+### Performance
+- Use Next.js App Router features (Server Components quando possível)
+- Otimize imports e lazy loading
+- Aproveite o Turbopack para desenvolvimento rápido
+
+### Acessibilidade
+- Use componentes Radix UI que já implementam acessibilidade
+- Mantenha hierarquia de headings adequada
+- Implemente navegação por teclado
+
+## Dependências Principais
+
+### UI/UX
+- React 19+ com React DOM
+- Shadcn UI components
+- Radix UI primitives
+- Tailwind CSS para estilização
+- Lucide React para ícones
+
+### Formulários e Validação
+- React Hook Form
+- Zod para validação de schema
+- @hookform/resolvers
+
+### Funcionalidades Específicas
+- Next Themes para tema dark/light
+- Sonner para toast notifications
+- Date-fns para manipulação de datas
+- Recharts para gráficos (se necessário)
+
+Este projeto segue as melhores práticas modernas de desenvolvimento React/Next.js com foco em performance, acessibilidade e experiência do desenvolvedor.
