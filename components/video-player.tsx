@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Video, Users } from "lucide-react"
 
 interface VideoPlayerProps {
   videoUrl: string
@@ -26,12 +28,47 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [currentVolume, setCurrentVolume] = useState(volume)
   const [isScriptLoaded, setIsScriptLoaded] = useState(false)
+  const [showJoinScreen, setShowJoinScreen] = useState(false)
+  const [isVideoStarted, setIsVideoStarted] = useState(false)
 
   // Detectar iOS
   const isIOS = typeof window !== 'undefined' && (
     /iPad|iPhone|iPod/.test(navigator.userAgent) || 
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   )
+
+  // Mostrar tela de entrada apenas no iOS
+  useEffect(() => {
+    if (isIOS) {
+      setShowJoinScreen(true)
+    }
+  }, [isIOS])
+
+  const handleJoinMeeting = async () => {
+    console.log('Usuário confirmou entrada na reunião - iniciando vídeo...')
+    setShowJoinScreen(false)
+    setIsVideoStarted(true)
+    
+    // Aguardar um pouco para o player carregar
+    setTimeout(() => {
+      // Tentar iniciar via ConvertAI API
+      if ((window as any).smartplayer && (window as any).smartplayer.instances) {
+        const instance = (window as any).smartplayer.instances['6837a8d8357fd7f67137cd7c']
+        if (instance && instance.play) {
+          instance.play()
+          console.log('Vídeo iniciado via ConvertAI API')
+        }
+      }
+      
+      // Fallback: tentar via elemento de vídeo direto
+      const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+      const video = player?.querySelector('video') as HTMLVideoElement
+      if (video) {
+        video.play().catch(console.error)
+        console.log('Vídeo iniciado via elemento HTML')
+      }
+    }, 500)
+  }
 
   useImperativeHandle(ref, () => ({
     play: () => {
@@ -84,7 +121,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
   // Carregar script do ConvertAI para iOS
   useEffect(() => {
-    if (!isIOS) return
+    if (!isIOS || !isVideoStarted) return
 
     // Verificar se o script já existe
     const existingScript = document.getElementById('scr_6837a8d8357fd7f67137cd7c')
@@ -300,7 +337,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         document.head.removeChild(scriptToRemove)
       }
     }
-  }, [isIOS])
+  }, [isIOS, isVideoStarted])
 
   // Sincronizar volume quando prop volume mudar
   useEffect(() => {
@@ -351,8 +388,53 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
   }, [onVideoEnd, isEnded])
 
-  // Para iOS: usar embed do ConvertAI
-  if (isIOS) {
+  // Tela de entrada para iOS
+  if (isIOS && showJoinScreen) {
+    return (
+      <div className="relative h-full w-full bg-gray-900 flex items-center justify-center">
+        <div className="text-center p-8 max-w-sm mx-auto">
+          {/* Ícone de reunião */}
+          <div className="mb-6 flex justify-center">
+            <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center">
+              <Video className="h-10 w-10 text-white" />
+            </div>
+          </div>
+          
+          {/* Título */}
+          <h2 className="text-white text-xl font-semibold mb-2">
+            Reunião Pronta para Iniciar
+          </h2>
+          
+          {/* Descrição */}
+          <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+            Amanda mentora está aguardando sua confirmação para iniciar a reunião ao vivo.
+          </p>
+          
+          {/* Status de participantes */}
+          <div className="flex items-center justify-center mb-6 text-gray-300 text-sm">
+            <Users className="h-4 w-4 mr-2" />
+            <span>1 participante aguardando</span>
+          </div>
+          
+          {/* Botão de confirmar entrada */}
+          <Button
+            onClick={handleJoinMeeting}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200"
+          >
+            Confirmar Entrada na Reunião
+          </Button>
+          
+          {/* Texto adicional */}
+          <p className="text-gray-400 text-xs mt-4">
+            Ao confirmar, você será conectado à reunião ao vivo
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Para iOS: usar embed do ConvertAI (após confirmação)
+  if (isIOS && isVideoStarted) {
     return (
       <div className="relative h-full w-full bg-gray-900">
         <div 
