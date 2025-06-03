@@ -28,11 +28,11 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [isScriptLoaded, setIsScriptLoaded] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
 
-  // Detectar iOS
+  // Detectar iOS NATIVO (não navegador web desktop)
   const isIOS = typeof window !== 'undefined' && (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  )
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) && 'ontouchstart' in window) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && 'ontouchstart' in window)
+  ) && !window.navigator.userAgent.includes('Chrome') && !window.navigator.userAgent.includes('Firefox')
 
   // Função unificada para iniciar/desmutar o vídeo
   const startVideo = () => {
@@ -51,15 +51,36 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       }
 
       if (video) {
-        video.muted = false; // Desmutar para reprodução com som
-        video.playsInline = true; // Garantir playsInline
-        video.loop = true; // Garantir loop
-        video.autoplay = true; // Garantir autoplay
+        console.log('iOS: Configurando vídeo para reprodução com som')
+        
+        // Configurar propriedades via atributos HTML (mais confiável no iPhone)
+        video.setAttribute('playsinline', 'true')
+        video.setAttribute('loop', 'true')
+        video.setAttribute('autoplay', 'true')
+        
+        // Aplicar via propriedades JavaScript também
+        video.playsInline = true
+        video.loop = true
+        video.autoplay = true
+        video.controls = false
+        
+        // Desmutar para reprodução com som (após interação do usuário)
+        video.muted = false
+        video.removeAttribute('muted')
+        
         video.play().then(() => {
           console.log('iOS: Vídeo iniciado e desmutado via elemento HTML (startVideo) com todas as propriedades')
           setHasStarted(true)
         }).catch((error) => {
           console.error('iOS: Erro ao iniciar/desmutar vídeo via elemento HTML (startVideo):', error)
+          // Se falhar, tentar com muted primeiro
+          video.muted = true
+          video.play().then(() => {
+            console.log('iOS: Vídeo iniciado mutado como fallback')
+            setHasStarted(true)
+          }).catch(fallbackError => {
+            console.error('iOS: Erro no fallback mutado:', fallbackError)
+          })
         })
       } else {
         // Fallback: tentar via ConvertAI API se o elemento video não for encontrado imediatamente
@@ -160,25 +181,37 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         const style = document.createElement('style')
         style.id = 'converteai-custom-style'
         style.textContent = `
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-controls-bar,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress-bar,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-time,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-duration,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-controller-mask,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-fake-bar,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-control-bar,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume,
-          #vid_6837a8d8357fd7f67137cd7c .vjs-progress-control,
-          #vid_6837a8d8357fd7f67137cd7c .vjs-time-control,
-          #vid_6837a8d8357fd7f67137cd7c .vjs-current-time,
-          #vid_6837a8d8357fd7f67137cd7c .vjs-duration,
-          #vid_6837a8d8357fd7f67137cd7c .vjs-remaining-time,
-          #vid_6837a8d8357fd7f67137cd7c .vjs-control-bar {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-          }
+                      #vid_6837a8d8357fd7f67137cd7c .smartplayer-controls-bar,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress-bar,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-time,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-duration,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-controller-mask,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-fake-bar,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-control-bar,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-controller,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons-left,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons-right,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-play-icon,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-icon,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-info-panel,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-menu,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-notice,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-mobile-play,
+            #vid_6837a8d8357fd7f67137cd7c .smartplayer-offline-content,
+            #vid_6837a8d8357fd7f67137cd7c .vjs-progress-control,
+            #vid_6837a8d8357fd7f67137cd7c .vjs-time-control,
+            #vid_6837a8d8357fd7f67137cd7c .vjs-current-time,
+            #vid_6837a8d8357fd7f67137cd7c .vjs-duration,
+            #vid_6837a8d8357fd7f67137cd7c .vjs-remaining-time,
+            #vid_6837a8d8357fd7f67137cd7c .vjs-control-bar {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              pointer-events: none !important;
+            }
           /* IMPEDIR POPUP DE RESUME - força esconder com máxima prioridade */
           #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume,
           .smartplayer-resume {
@@ -204,8 +237,11 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           /* O play button inicial e o poster precisam ser clicáveis para desmutar */
           #vid_6837a8d8357fd7f67137cd7c .smartplayer-play-button,
           #vid_6837a8d8357fd7f67137cd7c .vjs-big-play-button,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-poster {
+          #vid_6837a8d8357fd7f67137cd7c .smartplayer-poster,
+          #vid_6837a8d8357fd7f67137cd7c img,
+          #vid_6837a8d8357fd7f67137cd7c .smartplayer-thumbnail {
             pointer-events: auto !important;
+            z-index: 10 !important;
           }
           /* O container principal do player deve ser clicável inicialmente para iOS desmutar */
           #vid_6837a8d8357fd7f67137cd7c {
@@ -219,12 +255,50 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         if (videoElement) {
           let isPlaying = false
           
+          // Listener para quando o vídeo estiver pronto para reproduzir
+          videoElement.addEventListener('loadeddata', () => {
+            console.log('iOS: Vídeo carregado - tentando autoplay')
+            if (!hasStarted) {
+              videoElement.setAttribute('webkit-playsinline', 'true')
+              videoElement.setAttribute('playsinline', 'true')
+              videoElement.setAttribute('muted', 'true')
+              videoElement.setAttribute('autoplay', 'true')
+              videoElement.setAttribute('loop', 'true')
+              
+              videoElement.playsInline = true
+              videoElement.muted = true
+              videoElement.autoplay = true
+              videoElement.loop = true
+              videoElement.controls = false
+              
+              videoElement.play().catch(error => {
+                console.log('iOS: Autoplay falhou em loadeddata:', error.name)
+              })
+            }
+          })
+          
+          // Listener para quando o vídeo pode começar a reproduzir
+          videoElement.addEventListener('canplay', () => {
+            console.log('iOS: Vídeo pode reproduzir - tentando autoplay')
+            if (!hasStarted) {
+              videoElement.play().catch(error => {
+                console.log('iOS: Autoplay falhou em canplay:', error.name)
+              })
+            }
+          })
+          
           videoElement.addEventListener('play', () => {
             isPlaying = true
-            // Garantir que as propriedades estejam sempre aplicadas
+            // Garantir que as propriedades estejam sempre aplicadas via atributos e propriedades
+            videoElement.setAttribute('playsinline', 'true')
+            videoElement.setAttribute('loop', 'true')
+            videoElement.setAttribute('autoplay', 'true')
+            
             videoElement.playsInline = true
             videoElement.loop = true
             videoElement.autoplay = true
+            videoElement.controls = false
+            
             console.log('iOS: Vídeo interno do ConvertAI iniciou - prevenção de pause ativada com propriedades aplicadas')
             setHasStarted(true) // Definir hasStarted aqui para garantir
           })
@@ -271,6 +345,31 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 targetElement.style.zIndex = '-1';
                 console.log('iOS: Popup de resume forçadamente escondido via MutationObserver');
               }
+              
+              // ESCONDER CONTROLES DO PLAYER - forçar esconder se aparecerem
+              const controlClasses = [
+                'smartplayer-controller',
+                'smartplayer-icons',
+                'smartplayer-icons-left', 
+                'smartplayer-icons-right',
+                'smartplayer-play-icon',
+                'smartplayer-icon',
+                'smartplayer-info-panel',
+                'smartplayer-menu',
+                'smartplayer-notice',
+                'smartplayer-mobile-play',
+                'smartplayer-offline-content',
+                'smartplayer-controller-mask',
+                'smartplayer-fake-bar'
+              ];
+              
+              if (controlClasses.some(className => targetElement.classList.contains(className))) {
+                targetElement.style.display = 'none';
+                targetElement.style.visibility = 'hidden';
+                targetElement.style.opacity = '0';
+                targetElement.style.pointerEvents = 'none';
+                console.log('iOS: Controle do player escondido via MutationObserver:', targetElement.className);
+              }
             }
           })
         })
@@ -311,28 +410,134 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       
       applyConvertAICss() // Aplicar CSS após o script carregar
       
-      // Tentar iniciar o vídeo mutado com todas as propriedades para iPhone
+      // Esconder controles imediatamente após carregar
       setTimeout(() => {
         const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
-        const video = player?.querySelector('video') as HTMLVideoElement
-        if (video) {
-          // Aplicar todas as propriedades necessárias para iPhone
-          video.muted = true // Garantir que esteja mutado para autoplay
-          video.playsInline = true // Garantir playsInline
-          video.loop = true // Garantir loop
-          video.autoplay = true // Garantir autoplay
+        if (player) {
+          const controlSelectors = [
+            '.smartplayer-controller',
+            '.smartplayer-icons',
+            '.smartplayer-icons-left', 
+            '.smartplayer-icons-right',
+            '.smartplayer-play-icon',
+            '.smartplayer-icon',
+            '.smartplayer-info-panel',
+            '.smartplayer-menu',
+            '.smartplayer-notice',
+            '.smartplayer-mobile-play',
+            '.smartplayer-offline-content',
+            '.smartplayer-controller-mask',
+            '.smartplayer-fake-bar'
+          ]
           
-          // Tentar iniciar o vídeo
-          video.play().then(() => {
-            console.log('iOS: Vídeo iniciado (autoplay muted) via ConvertAI script load com playsInline, muted, loop')
-            // setHasStarted será definido pelo listener de 'play'
-          }).catch(error => {
-            console.error('iOS: Erro ao tentar autoplay muted via ConvertAI script load:', error)
+          controlSelectors.forEach(selector => {
+            const elements = player.querySelectorAll(selector)
+            elements.forEach(element => {
+              const el = element as HTMLElement
+              el.style.display = 'none'
+              el.style.visibility = 'hidden'
+              el.style.opacity = '0'
+              el.style.pointerEvents = 'none'
+            })
           })
-        } else {
-          console.log('iOS: Vídeo interno do ConvertAI NÃO encontrado após 1 segundo do script load.')
+          console.log('iOS: Controles escondidos imediatamente após carregamento')
         }
-      }, 1000) // Pequeno delay para garantir que o player esteja totalmente inicializado
+      }, 100)
+      
+      // Estratégia robusta para autoplay no iPhone
+      const tryAutoplay = (attempt = 1, maxAttempts = 10) => {
+        setTimeout(() => {
+          const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+          const video = player?.querySelector('video') as HTMLVideoElement
+          
+          if (video) {
+            console.log(`iOS: Tentativa ${attempt} de autoplay - readyState: ${video.readyState}`)
+            
+            // Forçar configuração mais agressiva
+            video.setAttribute('webkit-playsinline', 'true')
+            video.setAttribute('playsinline', 'true')
+            video.setAttribute('muted', 'true')
+            video.setAttribute('autoplay', 'true')
+            video.setAttribute('loop', 'true')
+            video.setAttribute('preload', 'auto')
+            
+            // Propriedades JavaScript
+            video.playsInline = true
+            video.muted = true
+            video.autoplay = true
+            video.loop = true
+            video.controls = false
+            video.preload = 'auto'
+            
+            // Verificar se o vídeo já está tocando
+            if (!video.paused && video.currentTime > 0) {
+              console.log(`iOS: Vídeo já está tocando na tentativa ${attempt}`)
+              setHasStarted(true)
+              return
+            }
+            
+            // Tentar reproduzir de forma mais agressiva
+            const playPromise = video.play()
+            
+            if (playPromise !== undefined) {
+              playPromise.then(() => {
+                console.log(`iOS: Autoplay bem-sucedido na tentativa ${attempt}`)
+                setHasStarted(true)
+              }).catch(error => {
+                console.error(`iOS: Erro no autoplay tentativa ${attempt}:`, error.name, error.message)
+                
+                // Estratégias específicas baseadas no tipo de erro
+                if (error.name === 'NotAllowedError') {
+                  console.log('iOS: NotAllowedError - aguardando interação do usuário')
+                } else if (error.name === 'AbortError') {
+                  console.log('iOS: AbortError - tentando novamente imediatamente')
+                  if (attempt < maxAttempts) {
+                    tryAutoplay(attempt + 1, maxAttempts)
+                  }
+                } else {
+                  // Para outros erros, continuar tentando
+                  if (attempt < maxAttempts) {
+                    console.log(`iOS: Tentando autoplay novamente em 300ms (tentativa ${attempt + 1})`)
+                    tryAutoplay(attempt + 1, maxAttempts)
+                  } else {
+                    console.log('iOS: Todas as tentativas de autoplay falharam - aguardando interação do usuário')
+                  }
+                }
+              })
+            } else {
+              console.log(`iOS: play() não retornou Promise na tentativa ${attempt}`)
+              if (attempt < maxAttempts) {
+                tryAutoplay(attempt + 1, maxAttempts)
+              }
+            }
+          } else {
+            console.log(`iOS: Vídeo não encontrado na tentativa ${attempt}`)
+            if (attempt < maxAttempts) {
+              tryAutoplay(attempt + 1, maxAttempts)
+            }
+          }
+        }, attempt === 1 ? 500 : 300) // Delays menores para mais agressividade
+      }
+      
+      // Iniciar tentativas de autoplay
+      tryAutoplay()
+      
+      // Polling adicional para verificar se o vídeo iniciou
+      const checkVideoStatus = setInterval(() => {
+        const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+        const video = player?.querySelector('video') as HTMLVideoElement
+        
+        if (video && !video.paused && video.currentTime > 0 && !hasStarted) {
+          console.log('iOS: Vídeo detectado como tocando via polling')
+          setHasStarted(true)
+          clearInterval(checkVideoStatus)
+        }
+      }, 500)
+      
+      // Limpar polling após 30 segundos
+      setTimeout(() => {
+        clearInterval(checkVideoStatus)
+      }, 30000)
     }
 
     script.onerror = () => {
@@ -362,19 +567,143 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       isIOS,
       isScriptLoaded,
       hasStarted,
-      currentVolume
+      currentVolume,
+      userAgent: typeof window !== 'undefined' ? navigator.userAgent : 'SSR',
+      platform: typeof window !== 'undefined' ? navigator.platform : 'SSR',
+      hasTouch: typeof window !== 'undefined' ? 'ontouchstart' in window : false
     })
   }, [isIOS, isScriptLoaded, hasStarted, currentVolume])
 
-  // Para dispositivos não-iOS, iniciar automaticamente
+  // Detectar primeira interação do usuário para forçar autoplay no iPhone
+  useEffect(() => {
+    if (!isIOS) return
+
+    const handleFirstInteraction = () => {
+      console.log('iOS: Primeira interação detectada - tentando forçar autoplay IMEDIATAMENTE')
+      
+      const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+      const video = player?.querySelector('video') as HTMLVideoElement
+      
+      if (video) {
+        // Configuração mais agressiva para autoplay mutado após interação
+        video.setAttribute('webkit-playsinline', 'true')
+        video.setAttribute('playsinline', 'true')
+        video.setAttribute('muted', 'true')
+        video.setAttribute('autoplay', 'true')
+        video.setAttribute('loop', 'true')
+        video.setAttribute('preload', 'auto')
+        
+        video.playsInline = true
+        video.muted = true
+        video.autoplay = true
+        video.loop = true
+        video.controls = false
+        video.preload = 'auto'
+        
+        // Tentar múltiplas vezes rapidamente após interação
+        let attempts = 0
+        const maxAttempts = 3
+        
+        const tryPlayAfterInteraction = () => {
+          attempts++
+          console.log(`iOS: Tentativa ${attempts} de autoplay após interação`)
+          
+          video.play().then(() => {
+            console.log('iOS: Autoplay forçado com sucesso após primeira interação')
+            setHasStarted(true)
+            // Remove os listeners após sucesso
+            document.removeEventListener('touchstart', handleFirstInteraction)
+            document.removeEventListener('click', handleFirstInteraction)
+            document.removeEventListener('touchend', handleFirstInteraction)
+            document.removeEventListener('mousedown', handleFirstInteraction)
+          }).catch(error => {
+            console.error(`iOS: Erro ao forçar autoplay após interação (tentativa ${attempts}):`, error.name, error.message)
+            
+            if (attempts < maxAttempts) {
+              setTimeout(tryPlayAfterInteraction, 100)
+            }
+          })
+        }
+        
+        // Iniciar tentativas imediatamente
+        tryPlayAfterInteraction()
+      }
+    }
+
+    // Adicionar listeners para QUALQUER tipo de interação
+    const events = ['touchstart', 'touchend', 'click', 'mousedown']
+    events.forEach(event => {
+      document.addEventListener(event, handleFirstInteraction, { once: true, passive: true })
+    })
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleFirstInteraction)
+      })
+    }
+  }, [isIOS])
+
+  // Para dispositivos não-iOS (navegadores web), iniciar automaticamente
   useEffect(() => {
     if (!isIOS && !hasStarted) {
+      console.log('Navegador Web: Tentando autoplay após 500ms')
       const timer = setTimeout(() => {
-        startVideo()
+        const videoElement = videoRef.current
+        if (videoElement) {
+          console.log('Navegador Web: Elemento de vídeo encontrado, tentando autoplay')
+          
+          // Estratégia agressiva para navegadores web
+          videoElement.muted = true // Começar mutado para garantir autoplay
+          videoElement.autoplay = true
+          videoElement.playsInline = true
+          videoElement.loop = true
+          
+          const playPromise = videoElement.play()
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              console.log('Navegador Web: Autoplay bem-sucedido (mutado)')
+              setHasStarted(true)
+              
+              // Tentar desmutar após 1 segundo se o volume for > 0
+              setTimeout(() => {
+                if (currentVolume > 0) {
+                  videoElement.muted = false
+                  videoElement.volume = currentVolume
+                  console.log('Navegador Web: Vídeo desmutado automaticamente')
+                }
+              }, 1000)
+            }).catch(error => {
+              console.error('Navegador Web: Erro no autoplay:', error.name, error.message)
+              
+              // Fallback: aguardar interação do usuário
+              const handleUserInteraction = () => {
+                console.log('Navegador Web: Interação detectada - tentando reproduzir')
+                videoElement.play().then(() => {
+                  setHasStarted(true)
+                  if (currentVolume > 0) {
+                    videoElement.muted = false
+                    videoElement.volume = currentVolume
+                  }
+                }).catch(console.error)
+                
+                // Remover listeners após sucesso
+                document.removeEventListener('click', handleUserInteraction)
+                document.removeEventListener('keydown', handleUserInteraction)
+                document.removeEventListener('touchstart', handleUserInteraction)
+              }
+              
+              document.addEventListener('click', handleUserInteraction, { once: true })
+              document.addEventListener('keydown', handleUserInteraction, { once: true })
+              document.addEventListener('touchstart', handleUserInteraction, { once: true })
+            })
+          }
+        } else {
+          console.error('Navegador Web: Elemento de vídeo não encontrado')
+        }
       }, 500)
       return () => clearTimeout(timer)
     }
-  }, [isIOS, hasStarted])
+  }, [isIOS, hasStarted, currentVolume])
 
   // Sincronizar volume quando prop volume mudar
   useEffect(() => {
@@ -486,63 +815,34 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             padding: '66.66666666666666% 0 0' // Reintroduzir o padding para o aspecto de vídeo
           }}
         >
-          {/* Thumbnail e backdrop do ConvertAI (importante para o player) */}
-          <img 
-            id="thumb_6837a8d8357fd7f67137cd7c" 
-            src="https://images.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6837a8d8357fd7f67137cd7c/thumbnail.jpg" 
-            style={{ 
-              position: 'absolute', 
-              top: 0, 
-              left: 0, 
-              width: '100%', 
-              height: '100%', 
-              objectFit: 'cover', 
-              display: 'block' 
-            }} 
-            alt="thumbnail" 
-          />
-          <div 
-            id="backdrop_6837a8d8357fd7f67137cd7c" 
-            style={{
-              WebkitBackdropFilter: 'blur(5px)',
-              backdropFilter: 'blur(5px)',
-              position: 'absolute',
-              top: 0,
-              height: '100%',
-              width: '100%'
-            }}
-          />
+          {/* Deixar vazio para o ConvertAI criar seus próprios elementos */}
           
-          {/* Overlay PERMANENTE para impedir pause do vídeo */}
-          <div 
-            className="absolute inset-0"
-            style={{ 
-              zIndex: 20, 
-              pointerEvents: 'auto',
-              background: 'transparent',
-              touchAction: 'none'
-            }}
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              // Se o vídeo ainda não iniciou, tentar iniciar/desmutar
-              if (!hasStarted) {
-                console.log('iOS: Clique no overlay - tentando iniciar vídeo')
-                startVideo()
-              } else {
+          {/* Overlay CONDICIONAL para impedir pause do vídeo - só aparece APÓS o vídeo iniciar */}
+          {hasStarted && (
+            <div 
+              className="absolute inset-0"
+              style={{ 
+                zIndex: 15, 
+                pointerEvents: 'auto',
+                background: 'transparent',
+                touchAction: 'none'
+              }}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
                 console.log('iOS: Clique no overlay bloqueado - vídeo não pode ser pausado')
-              }
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation()
-            }}
-            onTouchEnd={(e) => {
-              e.stopPropagation()
-            }}
-            onTouchMove={(e) => {
-              e.stopPropagation()
-            }}
-          />
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation()
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation()
+              }}
+              onTouchMove={(e) => {
+                e.stopPropagation()
+              }}
+            />
+          )}
         </div>
         {/* O script é carregado via useEffect, não inline aqui */}
       </div>
@@ -558,52 +858,66 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         src={videoUrl}
         autoPlay
         playsInline
-        muted={false} // Para não-iOS, pode iniciar mutado ou não, dependendo da necessidade
-        loop // Adicionar loop para não-iOS também
+        muted={true} // Começar mutado para garantir autoplay em navegadores
+        loop
         controls={false}
         disablePictureInPicture
         controlsList="nodownload nofullscreen noremoteplayback"
         preload="auto"
-        onPlay={() => { // Adicionar onPlay para non-iOS para setar hasStarted
-          console.log('Não-iOS: Vídeo iniciou.')
+        onPlay={() => {
+          console.log('Navegador Web: Vídeo iniciou via evento onPlay')
           setHasStarted(true)
         }}
-        onEnded={() => { // Manter onEnded para non-iOS
+        onLoadedData={() => {
+          console.log('Navegador Web: Dados do vídeo carregados')
+          const videoElement = videoRef.current
+          if (videoElement && !hasStarted) {
+            videoElement.play().catch(error => {
+              console.log('Navegador Web: Autoplay falhou em onLoadedData:', error.name)
+            })
+          }
+        }}
+        onCanPlay={() => {
+          console.log('Navegador Web: Vídeo pode reproduzir')
+          const videoElement = videoRef.current
+          if (videoElement && !hasStarted) {
+            videoElement.play().catch(error => {
+              console.log('Navegador Web: Autoplay falhou em onCanPlay:', error.name)
+            })
+          }
+        }}
+        onEnded={() => {
           if (!isEnded) {
             onVideoEnd()
           }
         }}
       />
-      {/* Overlay PERMANENTE para impedir pause do vídeo (para non-iOS) */}
-      <div 
-        className="absolute inset-0"
-        style={{ 
-          zIndex: 20, 
-          pointerEvents: 'auto',
-          background: 'transparent',
-          touchAction: 'none'
-        }}
-        onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          // Se o vídeo ainda não iniciou, tentar iniciar
-          if (!hasStarted) {
-            console.log('Não-iOS: Clique no overlay - tentando iniciar vídeo')
-            startVideo()
-          } else {
+      {/* Overlay CONDICIONAL para impedir pause do vídeo (para non-iOS) - só aparece APÓS o vídeo iniciar */}
+      {hasStarted && (
+        <div 
+          className="absolute inset-0"
+          style={{ 
+            zIndex: 20, 
+            pointerEvents: 'auto',
+            background: 'transparent',
+            touchAction: 'none'
+          }}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
             console.log('Não-iOS: Clique no overlay bloqueado - vídeo não pode ser pausado')
-          }
-        }}
-        onTouchStart={(e) => {
-          e.stopPropagation()
-        }}
-        onTouchEnd={(e) => {
-          e.stopPropagation()
-        }}
-        onTouchMove={(e) => {
-          e.stopPropagation()
-        }}
-      />
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation()
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation()
+          }}
+          onTouchMove={(e) => {
+            e.stopPropagation()
+          }}
+        />
+      )}
     </div>
   )
 })
