@@ -258,7 +258,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                     </div>
 
                     {/* Controls at bottom - apenas volume e outros controles */}
-                    <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-4 z-30">
+                    <div className="meeting-controls absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-4 z-30">
                       {/* Controle de Volume com Slider */}
                       <div 
                         className="relative"

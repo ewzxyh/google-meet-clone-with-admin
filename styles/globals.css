@@ -93,6 +93,35 @@ body {
   }
 }
 
+/* Garantir que botões e controles da interface tenham z-index mais alto que overlays de vídeo */
+.meeting-controls {
+  position: relative;
+  z-index: 100 !important;
+}
+
+.meeting-controls button,
+.meeting-controls .tooltip,
+.meeting-controls .slider,
+.meeting-controls .volume-slider {
+  z-index: 101 !important;
+  position: relative;
+}
+
+/* Prevenir seleção de texto e drag no overlay de vídeo */
+.video-overlay {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Garantir que tooltips tenham z-index alto */
+.tooltip-content {
+  z-index: 102 !important;
+}
+
 /* Estilos para o slider de volume vertical */
 .slider-vertical::-webkit-slider-thumb {
   appearance: none;

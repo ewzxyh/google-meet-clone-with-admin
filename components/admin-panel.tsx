@@ -33,8 +33,9 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { useAutoRefresh } from "@/hooks/use-auto-refresh"
 import { Toaster } from "@/components/ui/toaster"
-import { 
+import {
   Copy, 
   Trash2, 
   Video, 
@@ -67,6 +68,7 @@ import {
   Info,
   ClipboardCheck,
   X,
+  RefreshCw,
 } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -129,6 +131,24 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
   const dateFilterRef = useRef<HTMLDivElement>(null);
   const customDateOverlayRef = useRef<HTMLDivElement>(null);
   const [isCustomDateOverlayOpen, setIsCustomDateOverlayOpen] = useState(false);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  
+  // Hook para refresh automático
+  const { refreshNow, startAutoRefresh, stopAutoRefresh } = useAutoRefresh({
+    onDataUpdate: setMeetings,
+    intervalMs: 5000, // Atualiza a cada 5 segundos
+    enabled: autoRefreshEnabled
+  })
+
+  // Função para alternar auto-refresh
+  const toggleAutoRefresh = () => {
+    setAutoRefreshEnabled(!autoRefreshEnabled)
+    if (!autoRefreshEnabled) {
+      startAutoRefresh()
+    } else {
+      stopAutoRefresh()
+    }
+  }
 
   // Carregar URL padrão do localStorage ao iniciar
   useEffect(() => {
@@ -302,6 +322,11 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
     setSelectedMeetings([])
     setIsBulkActionDialogOpen(false)
     setBulkActionType(null)
+    
+    // Refresh automático após ação em massa (apenas se não houve erro)
+    if (!errorOccurred) {
+      setTimeout(() => refreshNow(), 1000)
+    }
   }
 
   // Filtrar reuniões com base no status, data e pesquisa
@@ -398,6 +423,9 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
 
       setNewMeetingData(newMeetingForState)
       setIsNewMeetingDialogOpen(true)
+      
+      // Refresh automático após criar reunião
+      setTimeout(() => refreshNow(), 1000)
     } else if (error) {
       console.error("Erro ao criar reunião:", error)
       toast({
@@ -458,6 +486,10 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
       setMeetings(
         meetings.map((meeting) => (meeting.meeting_id === meetingId ? { ...meeting, status: "Finalizado" } : meeting)),
       )
+      
+      // Refresh automático após finalizar reunião
+      setTimeout(() => refreshNow(), 1000)
+      
       toast({
         description: (
           <React.Fragment>
@@ -504,6 +536,10 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
     if (!error) {
       setMeetings(meetings.filter((meeting) => meeting.meeting_id !== meetingId))
       setIsNewMeetingDialogOpen(false)
+      
+      // Refresh automático após excluir reunião
+      setTimeout(() => refreshNow(), 1000)
+      
       toast({
         description: (
           <React.Fragment>
@@ -554,6 +590,10 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
       if (!error) {
         // Filtra localmente usando "Finalizado"
         setMeetings(meetings.filter((meeting) => meeting.status !== "Finalizado"))
+        
+        // Refresh automático após excluir reuniões finalizadas
+        setTimeout(() => refreshNow(), 1000)
+        
         toast({
           description: (
             <React.Fragment>
@@ -594,8 +634,57 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
       <Toaster />
       <header className="mb-6 md:mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-sky-700">Painel de Administração de Reuniões</h1>
-        <p className="text-gray-600 mt-1">Gerencie suas reuniões de forma eficiente.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-sky-700">Painel de Administração de Reuniões</h1>
+            <p className="text-gray-600 mt-1">Gerencie suas reuniões de forma eficiente.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleAutoRefresh}
+                    className={cn(
+                      "flex items-center gap-2 transition-all duration-200",
+                      autoRefreshEnabled 
+                        ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100" 
+                        : "bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100"
+                    )}
+                  >
+                    <RefreshCw 
+                      className={cn(
+                        "h-4 w-4",
+                        autoRefreshEnabled && "animate-spin"
+                      )} 
+                    />
+                    <span className="hidden sm:inline">
+                      {autoRefreshEnabled ? "Auto-refresh Ativo" : "Auto-refresh Pausado"}
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {autoRefreshEnabled 
+                      ? "Clique para pausar o refresh automático" 
+                      : "Clique para ativar o refresh automático"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshNow}
+              className="flex items-center gap-2 bg-sky-50 border-sky-300 text-sky-700 hover:bg-sky-100"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="hidden sm:inline">Atualizar Agora</span>
+            </Button>
+          </div>
+        </div>
       </header>
 
       {/* Seção de Criação de Nova Reunião e Configuração de URL Padrão */}

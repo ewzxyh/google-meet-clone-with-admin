@@ -752,22 +752,76 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
   }, [volume, currentVolume, isIOS])
 
-  // Prevenir teclas que podem pausar o vídeo (para o ConvertAI player, que é um embed)
+  // Prevenir teclas e ações que podem pausar o vídeo
   useEffect(() => {
     if (!hasStarted) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.key === ' ') {
+      // Prevenir teclas que podem pausar/controlar o vídeo
+      const blockedKeys = [
+        'Space', ' ',           // Espaço (play/pause)
+        'ArrowLeft',           // Seta esquerda (retroceder)
+        'ArrowRight',          // Seta direita (avançar)
+        'ArrowUp',             // Seta cima (volume)
+        'ArrowDown',           // Seta baixo (volume)
+        'KeyK',                // K (play/pause)
+        'KeyJ',                // J (retroceder 10s)
+        'KeyL',                // L (avançar 10s)
+        'KeyM',                // M (mute)
+        'KeyF',                // F (fullscreen)
+        'Escape',              // ESC (sair fullscreen)
+        'Home',                // Home (início)
+        'End'                  // End (fim)
+      ]
+      
+      if (blockedKeys.includes(e.code) || blockedKeys.includes(e.key)) {
         e.preventDefault()
-        console.log('Tecla espaço bloqueada')
+        e.stopPropagation()
+        console.log(`Navegador Web: Tecla ${e.code || e.key} bloqueada`)
       }
     }
-    document.addEventListener('keydown', handleKeyDown)
-    
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
+
+    // Prevenir pause via eventos do vídeo
+    const videoElement = videoRef.current
+    if (videoElement && !isIOS) {
+      const handlePause = (e: Event) => {
+        e.preventDefault()
+        console.log('Navegador Web: Tentativa de pause detectada - forçando play')
+        setTimeout(() => {
+          if (videoElement.paused && !videoElement.ended) {
+            videoElement.play().catch(console.error)
+          }
+        }, 10)
+      }
+
+      const handleSeeking = (e: Event) => {
+        e.preventDefault()
+        console.log('Navegador Web: Tentativa de seek bloqueada')
+      }
+
+      videoElement.addEventListener('pause', handlePause)
+      videoElement.addEventListener('seeking', handleSeeking)
+      
+      // Cleanup para eventos do vídeo
+      const cleanupVideo = () => {
+        videoElement.removeEventListener('pause', handlePause)
+        videoElement.removeEventListener('seeking', handleSeeking)
+      }
+
+      document.addEventListener('keydown', handleKeyDown)
+      
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown)
+        cleanupVideo()
+      }
+    } else {
+      document.addEventListener('keydown', handleKeyDown)
+      
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown)
+      }
     }
-  }, [hasStarted])
+  }, [hasStarted, isIOS])
 
   // Lógica de `ended` (para ambos os players, mais genérica)
   useEffect(() => {
@@ -820,7 +874,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           {/* Overlay CONDICIONAL para impedir pause do vídeo - só aparece APÓS o vídeo iniciar */}
           {hasStarted && (
             <div 
-              className="absolute inset-0"
+              className="video-overlay absolute inset-0"
               style={{ 
                 zIndex: 15, 
                 pointerEvents: 'auto',
@@ -839,6 +893,19 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 e.stopPropagation()
               }}
               onTouchMove={(e) => {
+                e.stopPropagation()
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                console.log('iOS: Menu de contexto bloqueado')
+              }}
+              onDragStart={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
               }}
             />
@@ -892,12 +959,12 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           }
         }}
       />
-      {/* Overlay CONDICIONAL para impedir pause do vídeo (para non-iOS) - só aparece APÓS o vídeo iniciar */}
+      {/* Overlay CONDICIONAL para impedir pause do vídeo (para navegadores web) - só aparece APÓS o vídeo iniciar */}
       {hasStarted && (
         <div 
-          className="absolute inset-0"
+          className="video-overlay absolute inset-0"
           style={{ 
-            zIndex: 20, 
+            zIndex: 10, 
             pointerEvents: 'auto',
             background: 'transparent',
             touchAction: 'none'
@@ -905,15 +972,44 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
-            console.log('Não-iOS: Clique no overlay bloqueado - vídeo não pode ser pausado')
+            console.log('Navegador Web: Clique no overlay bloqueado - vídeo não pode ser pausado')
           }}
           onTouchStart={(e) => {
+            e.preventDefault()
             e.stopPropagation()
           }}
           onTouchEnd={(e) => {
+            e.preventDefault()
             e.stopPropagation()
           }}
           onTouchMove={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+          onMouseUp={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+          onDoubleClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            console.log('Navegador Web: Duplo clique bloqueado - sem fullscreen')
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            console.log('Navegador Web: Menu de contexto bloqueado')
+          }}
+          onDragStart={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
             e.stopPropagation()
           }}
         />
