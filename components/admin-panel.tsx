@@ -1,8 +1,6 @@
 "use client"
 
-import React from "react"
-
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -105,9 +103,7 @@ const statusTranslations = {
 export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const [meetings, setMeetings] = useState<Meeting[]>(
-    initialMeetings.map(m => ({...m, status: m.status === 'active' ? 'Ativado' : m.status === 'ended' ? 'Finalizado' : m.status }))
-  )
+  const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings)
   const [newMeetingVideoUrl, setNewMeetingVideoUrl] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [dateFilter, setDateFilter] = useState<string>("all")
@@ -133,10 +129,26 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
   const [isCustomDateOverlayOpen, setIsCustomDateOverlayOpen] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   
+  // Sincronizar o estado meetings com a prop initialMeetings
+  useEffect(() => {
+    setMeetings(initialMeetings);
+  }, [initialMeetings]);
+
   // Hook para refresh automático
+  // A função onDataUpdate precisa traduzir os status se useAutoRefresh buscar dados brutos.
+  const handleDataUpdateFromAutoRefresh = useCallback((newMeetingsData: any[]) => {
+    const translatedMeetings = newMeetingsData.map((meeting: any) => ({
+      ...meeting,
+      status: meeting.status === 'active' ? 'Ativado' : 
+              meeting.status === 'ended' ? 'Finalizado' : 
+              meeting.status
+    }));
+    setMeetings(translatedMeetings);
+  }, []); // setMeetings de useState é estável, então [] é seguro aqui.
+
   const { refreshNow, startAutoRefresh, stopAutoRefresh } = useAutoRefresh({
-    onDataUpdate: setMeetings,
-    intervalMs: 5000, // Atualiza a cada 5 segundos
+    onDataUpdate: handleDataUpdateFromAutoRefresh, // Usar a função memorizada e com tradução
+    intervalMs: 5000, 
     enabled: autoRefreshEnabled
   })
 
