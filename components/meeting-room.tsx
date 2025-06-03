@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { getSupabaseBrowser } from "@/lib/supabase"
-import { MicOff, VideoOff, MessageCircle, Phone, Volume2, VolumeX, Users, User, MoreVertical, Settings, Mic, Video } from "lucide-react"
+import { MicOff, VideoOff, MessageCircle, Phone, Volume2, VolumeX, Users, User, MoreVertical, Settings, Mic, Video, AlertTriangle } from "lucide-react"
 import ChatPanel from "./chat-panel"
 import VideoPlayer, { VideoPlayerRef } from "./video-player"
 import IOSDebugInfo from "./ios-debug-info"
@@ -32,6 +32,8 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
   const [showEndMeetingDialog, setShowEndMeetingDialog] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [showVolumeWarning, setShowVolumeWarning] = useState(false)
+  const [showMicWarning, setShowMicWarning] = useState(false)
+  const [showCameraWarning, setShowCameraWarning] = useState(false)
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const videoPlayerRef = useRef<VideoPlayerRef>(null)
 
@@ -153,23 +155,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
     }
   }, [isMuted, volume, handleVolumeChange])
 
-  // Efeito para encerrar a reunião automaticamente após um tempo específico
-  useEffect(() => {
-    const autoEndDurationMs = (10 * 60 + 52) * 1000 // 10 minutos e 52 segundos em milissegundos
-    
-    console.log(`Reunião programada para encerrar automaticamente em ${autoEndDurationMs / 1000} segundos.`) 
 
-    const autoEndTimer = setTimeout(() => {
-      console.log("Tempo limite da reunião atingido, encerrando automaticamente...")
-      handleVideoEnd() // Chama a função que marca a reunião como encerrada e redireciona
-    }, autoEndDurationMs)
-
-    // Limpar o timer se o componente for desmontado antes do tempo
-    return () => {
-      console.log("Limpando timer de encerramento automático da reunião.")
-      clearTimeout(autoEndTimer)
-    }
-  }, [handleVideoEnd]) // Dependência em handleVideoEnd para garantir que a função mais recente seja usada
 
   if (isEnded) {
     return (
@@ -420,11 +406,11 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
               </div>
 
               {/* Seção lateral - Video do usuário */}
-              <div className="w-full lg:w-[380px] bg-white p-6 flex flex-col justify-center lg:ml-4">
+              <div className="w-full lg:w-[480px] bg-white pt-6 flex flex-col justify-center lg:ml-4">
                 <div className="max-w-sm mx-auto w-full">
                   {/* Video do usuário */}
                   <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg mb-4">
-                    <div className="aspect-[16/9] flex items-center justify-center relative">
+                    <div className="w-full min-h-[220px] sm:min-w-[380px] sm:min-h-[240px] flex items-center justify-center relative">
                       {/* Ícone de usuário */}
                       <div className="flex flex-col items-center justify-center text-gray-400 mb-14 sm:mb-20">
                         <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center mb-2">
@@ -467,8 +453,8 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                         <TooltipTrigger asChild>
                           <Button
                             size="icon"
-                            className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-neutral-100 hover:bg-neutral-200 text-black border-0 shadow-lg"
-                            disabled
+                            className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-neutral-200 hover:bg-neutral-100 text-black border-0 shadow-lg"
+                            onClick={() => setShowMicWarning(true)}
                           >
                             <MicOff className="h-4 w-4 sm:h-5 sm:w-5" />
                           </Button>
@@ -482,8 +468,8 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                         <TooltipTrigger asChild>
                           <Button
                             size="icon"
-                            className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-neutral-100 hover:bg-neutral-200 text-black border-0 shadow-lg"
-                            disabled
+                            className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-neutral-200 hover:bg-neutral-400 text-black border-0 shadow-lg"
+                            onClick={() => setShowCameraWarning(true)}
                           >
                             <VideoOff className="h-4 w-4 sm:h-5 sm:w-5" />
                           </Button>
@@ -555,14 +541,14 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
 
         {/* Dialog de confirmação para encerrar reunião */}
         <Dialog open={showEndMeetingDialog} onOpenChange={setShowEndMeetingDialog}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-w-sm w-[90vw] p-6 rounded-xl">
             <DialogHeader>
               <DialogTitle>Encerrar Reunião</DialogTitle>
               <DialogDescription>
                 Tem certeza de que deseja sair desta reunião? Esta ação encerrará a reunião para todos os participantes e não poderá ser desfeita.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+            <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-4">
               <Button
                 variant="outline"
                 onClick={() => setShowEndMeetingDialog(false)}
@@ -576,6 +562,56 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                 className="bg-red-600 hover:bg-red-700"
               >
                 Sim, encerrar reunião
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de aviso para microfone */}
+        <Dialog open={showMicWarning} onOpenChange={setShowMicWarning}>
+          <DialogContent className="max-w-sm w-[90vw] p-6 rounded-xl">
+            <DialogHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-6 w-6 text-amber-500" />
+                </div>
+                <DialogTitle className="text-lg">Permissão Negada</DialogTitle>
+              </div>
+              <DialogDescription className="text-gray-600">
+                O microfone foi desativado pelo administrador da reunião.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex justify-end mt-4">
+              <Button
+                onClick={() => setShowMicWarning(false)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Entendi
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de aviso para câmera */}
+        <Dialog open={showCameraWarning} onOpenChange={setShowCameraWarning}>
+          <DialogContent className="max-w-sm w-[90vw] p-6 rounded-xl">
+            <DialogHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-6 w-6 text-amber-500" />
+                </div>
+                <DialogTitle className="text-lg">Permissão Negada</DialogTitle>
+              </div>
+              <DialogDescription className="text-gray-600">
+                A câmera foi desativada pelo administrador da reunião.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex justify-end mt-4">
+              <Button
+                onClick={() => setShowCameraWarning(false)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Entendi
               </Button>
             </DialogFooter>
           </DialogContent>
