@@ -259,27 +259,23 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
 
                     {/* Controls at bottom - apenas volume e outros controles */}
                     <div className="meeting-controls absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-4 z-30">
-                      {/* Controle de Volume com Slider */}
-                      <div 
-                        className="relative"
-                        onMouseEnter={() => {
-                          if (volumeTimeoutRef.current) {
-                            clearTimeout(volumeTimeoutRef.current)
-                          }
-                          setShowVolumeSlider(true)
-                        }}
-                        onMouseLeave={() => {
-                          // Delay para permitir movimento do mouse para o slider
-                          volumeTimeoutRef.current = setTimeout(() => {
-                            setShowVolumeSlider(false)
-                          }, 500)
-                        }}
-                      >
-                        {isIOS && showVolumeWarning && (
-                          <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 text-xs px-3 py-1 rounded-full shadow-md whitespace-nowrap animate-bounce z-50">
-                            Toque para ativar o som!
-                          </div>
-                        )}
+                      {/* Controle de Volume com Slider - Escondido no iOS */}
+                      {!isIOS && (
+                        <div 
+                          className="relative"
+                          onMouseEnter={() => {
+                            if (volumeTimeoutRef.current) {
+                              clearTimeout(volumeTimeoutRef.current)
+                            }
+                            setShowVolumeSlider(true)
+                          }}
+                          onMouseLeave={() => {
+                            // Delay para permitir movimento do mouse para o slider
+                            volumeTimeoutRef.current = setTimeout(() => {
+                              setShowVolumeSlider(false)
+                            }, 500)
+                          }}
+                        >
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
@@ -364,7 +360,8 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                             </div>
                           </>
                         )}
-                      </div>
+                        </div>
+                      )}
 
                       <Tooltip>
                         <TooltipTrigger asChild>

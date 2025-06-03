@@ -879,9 +879,9 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 zIndex: 15, 
                 pointerEvents: 'auto',
                 background: 'transparent',
-                touchAction: 'none',
-                // Excluir a área dos botões na parte inferior
-                bottom: '100px' // Deixar espaço para os botões de controle
+                touchAction: 'none'
+                // Para iOS, cobrir toda a área incluindo botões (sem bottom)
+                // Para outros dispositivos, o overlay é diferente
               }}
               onClick={(e) => {
                 e.preventDefault()
