@@ -879,7 +879,9 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 zIndex: 15, 
                 pointerEvents: 'auto',
                 background: 'transparent',
-                touchAction: 'none'
+                touchAction: 'none',
+                // Excluir a área dos botões na parte inferior
+                bottom: '100px' // Deixar espaço para os botões de controle
               }}
               onClick={(e) => {
                 e.preventDefault()
@@ -967,7 +969,9 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             zIndex: 10, 
             pointerEvents: 'auto',
             background: 'transparent',
-            touchAction: 'none'
+            touchAction: 'none',
+            // Excluir a área dos botões na parte inferior
+            bottom: '100px' // Deixar espaço para os botões de controle
           }}
           onClick={(e) => {
             e.preventDefault()
