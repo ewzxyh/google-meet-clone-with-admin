@@ -51,7 +51,8 @@ export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
   const isNameValid = name.trim().length >= 3
 
   const handleJoinMeeting = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+    (document.activeElement as HTMLElement)?.blur();
 
     if (!isNameValid) {
       setShowNameError(true)
@@ -205,7 +206,7 @@ export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
                         value={name}
                         onChange={(e) => handleNameChange(e.target.value)}
                         placeholder="Seu nome"
-                        className="w-full h-10 sm:h-12 text-sm sm:text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md text-center"
+                        className="w-full h-10 sm:h-12 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md text-center"
                         maxLength={60}
                         required
                       />
