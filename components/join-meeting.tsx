@@ -195,6 +195,7 @@ export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
               {/* Join form - agora ocupa toda a largura em mobile */}
               <div className="w-full lg:w-[380px] bg-white p-4 sm:p-6 flex flex-col justify-center lg:ml-4">
                 <div className="max-w-sm mx-auto w-full text-center">
+                  <p className="text-base sm:text-sm font-semibold sm:font-normal text-gray-600 mb-2">Convite para reunião privada</p>
                   <h2 className="text-xl sm:text-2xl font-normal text-gray-900 mb-6 sm:mb-8 text-center">Qual é seu nome?</h2>
 
                   <form onSubmit={handleJoinMeeting} className="space-y-4 sm:space-y-6">

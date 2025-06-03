@@ -223,7 +223,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                   <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg">
                     <div className="aspect-[16/9] relative">
                       {/* Header do vídeo com nome */}
-                      <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
+                      <div className="absolute top-2 left-2 right-4 z-10 flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <Image
                             src="/amanda_icon.webp"
@@ -232,7 +232,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                             height={32}
                             className="w-8 h-8 rounded-full object-cover"
                           />
-                          <span className="text-white text-sm font-medium">@Mentora_Amanda</span>
+                          <span className="text-white text-sm font-medium">@Amanda_mentora</span>
                         </div>
                       </div>
 
