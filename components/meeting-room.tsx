@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { getSupabaseBrowser } from "@/lib/supabase"
-import { MicOff, VideoOff, MessageCircle, Phone, Volume2, VolumeX, Users, MoreVertical, Settings, Mic, Video } from "lucide-react"
+import { MicOff, VideoOff, MessageCircle, Phone, Volume2, VolumeX, Users, User, MoreVertical, Settings, Mic, Video } from "lucide-react"
 import ChatPanel from "./chat-panel"
 import VideoPlayer, { VideoPlayerRef } from "./video-player"
 import IOSDebugInfo from "./ios-debug-info"
@@ -236,13 +236,17 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                 <div className="w-full max-w-3xl">
                   <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg">
                     <div className="aspect-[16/9] relative">
-                      {/* Header do vídeo com nome e status */}
+                      {/* Header do vídeo com nome */}
                       <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
-                        <span className="text-white text-sm font-medium">Amanda mentora</span>
-                        {/* Status "AO VIVO" no lado direito do vídeo */}
-                        <div className="flex items-center space-x-1">
-                          <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse"></div>
-                          <span className="text-white text-xs font-medium">AO VIVO</span>
+                        <div className="flex items-center space-x-2">
+                          <Image
+                            src="/amanda_icon.webp"
+                            alt="Amanda"
+                            width={32}
+                            height={32}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                          <span className="text-white text-sm font-medium">@Mentora_Amanda</span>
                         </div>
                       </div>
 
@@ -416,37 +420,57 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
               </div>
 
               {/* Seção lateral - Video do usuário */}
-              <div className="w-full lg:w-[380px] bg-white p-4 sm:p-6 flex flex-col justify-center lg:ml-4">
+              <div className="w-full lg:w-[380px] bg-white p-6 flex flex-col justify-center lg:ml-4">
                 <div className="max-w-sm mx-auto w-full">
                   {/* Video do usuário */}
                   <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg mb-4">
                     <div className="aspect-[16/9] flex items-center justify-center relative">
                       {/* Ícone de usuário */}
-                      <div className="flex flex-col items-center justify-center text-gray-400">
+                      <div className="flex flex-col items-center justify-center text-gray-400 mb-14 sm:mb-20">
                         <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center mb-2">
-                          <Users className="h-8 w-8" />
+                          <User className="h-8 w-8" />
                         </div>
-                        <span className="text-sm">Você</span>
+                        <span className="text-sm">{userName}</span>
                       </div>
                       
-                      {/* Indicador de vídeo desabilitado */}
-                      <div className="absolute bottom-2 right-2">
-                        <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                          <VideoOff className="h-3 w-3 text-white" />
-                        </div>
-                      </div>
+
                     </div>
 
                     {/* Controles do usuário - movidos para aqui */}
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3">
+                      {/* Botão de encerrar reunião com ícone Material Symbols */}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             size="icon"
-                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-red-500 hover:bg-red-600 text-white border-0 shadow-lg"
+                            className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-red-600 hover:bg-red-700 text-white border-0 shadow-lg"
+                            onClick={() => setShowEndMeetingDialog(true)}
+                          >
+                            <span 
+                              className="material-symbols-outlined text-lg sm:text-xl"
+                              style={{ 
+                                fontFamily: '"Material Symbols Outlined", sans-serif',
+                                fontVariationSettings: '"FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24',
+                                lineHeight: 1
+                              }}
+                            >
+                              call_end
+                            </span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="bg-gray-800 text-white text-xs px-2 py-1 rounded">
+                          <p>Encerrar reunião</p>
+                        </TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-neutral-100 hover:bg-neutral-200 text-black border-0 shadow-lg"
                             disabled
                           >
-                            <MicOff className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <MicOff className="h-4 w-4 sm:h-5 sm:w-5" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="bg-gray-800 text-white text-xs px-2 py-1 rounded">
@@ -458,30 +482,14 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                         <TooltipTrigger asChild>
                           <Button
                             size="icon"
-                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-red-500 hover:bg-red-600 text-white border-0 shadow-lg"
+                            className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-neutral-100 hover:bg-neutral-200 text-black border-0 shadow-lg"
                             disabled
                           >
-                            <VideoOff className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <VideoOff className="h-4 w-4 sm:h-5 sm:w-5" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="bg-gray-800 text-white text-xs px-2 py-1 rounded">
                           <p>Câmera desativada</p>
-                        </TooltipContent>
-                      </Tooltip>
-
-                      {/* Botão de encerrar reunião com confirmação */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon"
-                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-red-600 hover:bg-red-700 text-white border-0 shadow-lg"
-                            onClick={() => setShowEndMeetingDialog(true)}
-                          >
-                            <Phone className="h-3 w-3 sm:h-4 sm:w-4 rotate-135" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="bg-gray-800 text-white text-xs px-2 py-1 rounded">
-                          <p>Encerrar reunião</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -515,25 +523,10 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                       </TooltipContent>
                     </Tooltip>
 
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant="outline" className="text-xs px-2 sm:px-3 py-1 bg-white border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer flex items-center space-x-1">
-                          <VideoOff className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Sem câmera</span>
-                          <span className="sm:hidden">Sem câmera</span>
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-gray-800 text-white text-xs px-2 py-1 rounded max-w-xs">
-                        <p>Nenhuma câmera foi detectada no seu dispositivo.</p>
-                      </TooltipContent>
-                    </Tooltip>
+
                   </div>
 
-                  {/* Informação do usuário */}
-                  <div className="mt-6 text-center">
-                    <div className="text-sm text-gray-500">Participando como</div>
-                    <div className="text-lg font-medium text-gray-900 mt-1">{userName}</div>
-                  </div>
+
                 </div>
               </div>
             </div>

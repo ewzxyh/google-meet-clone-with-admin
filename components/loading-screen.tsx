@@ -30,8 +30,8 @@ export default function LoadingScreen({ userName }: LoadingScreenProps) {
           <div className="flex w-full justify-center items-center">
             {/* Layout responsivo - vertical em mobile, horizontal em desktop */}
             <div className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto">
-              {/* Video preview */}
-              <div className="flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-white flex-1">
+              {/* Video preview - OCULTO EM DISPOSITIVOS MÓVEIS */}
+              <div className="hidden lg:flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-white flex-1">
                 <div className="w-full max-w-2xl">
                   <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg">
                     <div className="aspect-[16/9] flex items-center justify-center">
@@ -80,7 +80,7 @@ export default function LoadingScreen({ userName }: LoadingScreenProps) {
                     </div>
                   </div>
 
-                  {/* Bottom badges - aligned left, responsive */}
+                  {/* Bottom badges - aligned left, responsive - TAMBÉM OCULTO EM MOBILE */}
                   <div className="mt-3 sm:mt-4 flex flex-wrap items-start justify-start gap-2 sm:gap-3">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -108,27 +108,16 @@ export default function LoadingScreen({ userName }: LoadingScreenProps) {
                       </TooltipContent>
                     </Tooltip>
 
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant="outline" className="text-xs px-2 sm:px-3 py-1 bg-white border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer flex items-center space-x-1">
-                          <VideoOff className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">A câmera não foi encontrada</span>
-                          <span className="sm:hidden">Sem câmera</span>
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-gray-800 text-white text-xs px-2 py-1 rounded max-w-xs">
-                        <p>Nenhuma câmera foi detectada no seu dispositivo.</p>
-                      </TooltipContent>
-                    </Tooltip>
+
                   </div>
                 </div>
               </div>
 
-              {/* Loading section - mantendo a seção "Pedindo para entrar..." */}
+              {/* Loading section - agora ocupa toda a largura em mobile */}
               <div className="w-full lg:w-[380px] bg-white p-4 sm:p-6 flex flex-col justify-center lg:ml-4">
                 <div className="max-w-sm mx-auto w-full text-center">
-                  <h2 className="text-xl sm:text-2xl font-normal text-gray-900 mb-6 sm:mb-8 text-center">Pedindo para entrar...</h2>
-                  <p className="mb-8 text-gray-600">Você participará da chamada quando alguém permitir</p>
+                  <h2 className="text-xl sm:text-2xl font-normal text-gray-900 mb-6 sm:mb-8 text-center">Entrando na reunião...</h2>
+                  <p className="mb-8 text-gray-600">Você irá entrar na reunião em poucos segundos, aguarde um momento...</p>
                   <div className="flex justify-center mb-8">
                     <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
                   </div>

@@ -857,6 +857,115 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
   }, [onVideoEnd, isEnded, isIOS])
 
+  // Detectar quando o usuário sai/volta da aba/navegador
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleVisibilityChange = () => {
+      const isHidden = document.hidden
+      console.log(`Visibilidade da página mudou: ${isHidden ? 'oculta' : 'visível'}`)
+      
+      if (!isHidden && hasStarted) {
+        // Usuário voltou para a aba - tentar retomar reprodução
+        console.log('Usuário voltou - tentando retomar reprodução do vídeo')
+        
+        setTimeout(() => {
+          if (isIOS) {
+            // Para iOS com ConvertAI player
+            const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+            const video = player?.querySelector('video') as HTMLVideoElement
+            
+            if (video && video.paused) {
+              console.log('iOS: Vídeo pausado detectado - tentando retomar')
+              
+              // Garantir propriedades antes de tentar reproduzir
+              video.playsInline = true
+              video.loop = true
+              video.autoplay = true
+              video.controls = false
+              
+              video.play().then(() => {
+                console.log('iOS: Vídeo retomado com sucesso após voltar à aba')
+              }).catch(error => {
+                console.error('iOS: Erro ao retomar vídeo:', error.name)
+                
+                // Se falhar, tentar com muted primeiro
+                if (error.name === 'NotAllowedError') {
+                  video.muted = true
+                  video.play().then(() => {
+                    console.log('iOS: Vídeo retomado mutado como fallback')
+                    // Tentar desmutar após 1 segundo se volume > 0
+                    setTimeout(() => {
+                      if (currentVolume > 0) {
+                        video.muted = false
+                        video.volume = currentVolume
+                      }
+                    }, 1000)
+                  }).catch(console.error)
+                }
+              })
+            }
+            
+            // Tentar também via API do ConvertAI
+            if ((window as any).smartplayer && (window as any).smartplayer.instances) {
+              const instance = (window as any).smartplayer.instances['6837a8d8357fd7f67137cd7c']
+              if (instance && instance.play) {
+                instance.play()
+                console.log('iOS: Tentativa de retomar via ConvertAI API')
+              }
+            }
+          } else {
+            // Para outros dispositivos (HTML5 nativo)
+            const videoElement = videoRef.current
+            if (videoElement && videoElement.paused) {
+              console.log('Navegador Web: Vídeo pausado detectado - tentando retomar')
+              
+              videoElement.play().then(() => {
+                console.log('Navegador Web: Vídeo retomado com sucesso após voltar à aba')
+              }).catch(error => {
+                console.error('Navegador Web: Erro ao retomar vídeo:', error.name)
+                
+                // Se falhar, tentar com muted primeiro
+                if (error.name === 'NotAllowedError') {
+                  videoElement.muted = true
+                  videoElement.play().then(() => {
+                    console.log('Navegador Web: Vídeo retomado mutado como fallback')
+                    // Tentar desmutar após 1 segundo se volume > 0
+                    setTimeout(() => {
+                      if (currentVolume > 0) {
+                        videoElement.muted = false
+                        videoElement.volume = currentVolume
+                      }
+                    }, 1000)
+                  }).catch(console.error)
+                }
+              })
+            }
+          }
+        }, 500) // Delay para garantir que a aba esteja totalmente ativa
+      }
+    }
+
+    // Adicionar listener para mudanças de visibilidade
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    // Listeners adicionais para diferentes eventos de foco
+    window.addEventListener('focus', () => {
+      console.log('Janela ganhou foco')
+      handleVisibilityChange()
+    })
+    
+    window.addEventListener('blur', () => {
+      console.log('Janela perdeu foco')
+    })
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleVisibilityChange)
+      window.removeEventListener('blur', () => {})
+    }
+  }, [isIOS, hasStarted, currentVolume])
+
   // Renderização para iOS (ConvertAI player)
   if (isIOS) {
     return (

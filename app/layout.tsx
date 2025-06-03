@@ -17,6 +17,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="stylesheet" href="[REDACTED_BASIC_AUTH_URL]" />
+        <link rel="preload" href="[REDACTED_BASIC_AUTH_URL]" as="style" />
+      </head>
       <body className={`${inter.className} bg-gray-50`}>{children}</body>
     </html>
   )
