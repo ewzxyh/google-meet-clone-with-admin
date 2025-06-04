@@ -55,12 +55,10 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         
         // Configurar propriedades via atributos HTML (mais confiável no iPhone)
         video.setAttribute('playsinline', 'true')
-        video.setAttribute('loop', 'true')
         video.setAttribute('autoplay', 'true')
         
         // Aplicar via propriedades JavaScript também
         video.playsInline = true
-        video.loop = true
         video.autoplay = true
         video.controls = false
         
@@ -121,7 +119,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           video.volume = clampedVolume
           // Garantir que as propriedades estejam sempre aplicadas
           video.playsInline = true
-          video.loop = true
           video.autoplay = true
           if (clampedVolume > 0 && video.muted) {
             video.muted = false
@@ -263,12 +260,10 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
               videoElement.setAttribute('playsinline', 'true')
               videoElement.setAttribute('muted', 'true')
               videoElement.setAttribute('autoplay', 'true')
-              videoElement.setAttribute('loop', 'true')
               
               videoElement.playsInline = true
               videoElement.muted = true
               videoElement.autoplay = true
-              videoElement.loop = true
               videoElement.controls = false
               
               videoElement.play().catch(error => {
@@ -291,11 +286,9 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             isPlaying = true
             // Garantir que as propriedades estejam sempre aplicadas via atributos e propriedades
             videoElement.setAttribute('playsinline', 'true')
-            videoElement.setAttribute('loop', 'true')
             videoElement.setAttribute('autoplay', 'true')
             
             videoElement.playsInline = true
-            videoElement.loop = true
             videoElement.autoplay = true
             videoElement.controls = false
             
@@ -458,14 +451,12 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             video.setAttribute('playsinline', 'true')
             video.setAttribute('muted', 'true')
             video.setAttribute('autoplay', 'true')
-            video.setAttribute('loop', 'true')
             video.setAttribute('preload', 'auto')
             
             // Propriedades JavaScript
             video.playsInline = true
             video.muted = true
             video.autoplay = true
-            video.loop = true
             video.controls = false
             video.preload = 'auto'
             
@@ -590,13 +581,11 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         video.setAttribute('playsinline', 'true')
         video.setAttribute('muted', 'true')
         video.setAttribute('autoplay', 'true')
-        video.setAttribute('loop', 'true')
         video.setAttribute('preload', 'auto')
         
         video.playsInline = true
         video.muted = true
         video.autoplay = true
-        video.loop = true
         video.controls = false
         video.preload = 'auto'
         
@@ -656,7 +645,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           videoElement.muted = true // Começar mutado para garantir autoplay
           videoElement.autoplay = true
           videoElement.playsInline = true
-          videoElement.loop = true
           
           const playPromise = videoElement.play()
           if (playPromise !== undefined) {
@@ -718,7 +706,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           syncVideo.volume = volume
           // Garantir que as propriedades estejam sempre aplicadas
           syncVideo.playsInline = true
-          syncVideo.loop = true
           syncVideo.autoplay = true
           if (volume > 0 && syncVideo.muted) {
             syncVideo.muted = false
@@ -880,7 +867,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
               
               // Garantir propriedades antes de tentar reproduzir
               video.playsInline = true
-              video.loop = true
               video.autoplay = true
               video.controls = false
               
@@ -1037,7 +1023,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         autoPlay
         playsInline
         muted={true} // Começar mutado para garantir autoplay em navegadores
-        loop
+
         controls={false}
         disablePictureInPicture
         controlsList="nodownload nofullscreen noremoteplayback"
