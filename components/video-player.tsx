@@ -40,7 +40,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     console.log('startVideo chamado, isIOS:', isIOS)
     
     if (isIOS) {
-      const playerContainer = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+      const playerContainer = document.querySelector('#vid_684112dbb91e43e9317649b0')
       const video = playerContainer?.querySelector('video') as HTMLVideoElement
       const smartPlayerContent = playerContainer?.querySelector('.smartplayer-content') as HTMLElement
 
@@ -84,7 +84,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       } else {
         // Fallback: tentar via ConvertAI API se o elemento video não for encontrado imediatamente
         if ((window as any).smartplayer && (window as any).smartplayer.instances) {
-          const instance = (window as any).smartplayer.instances['6837a8d8357fd7f67137cd7c']
+          const instance = (window as any).smartplayer.instances['684112dbb91e43e9317649b0']
           if (instance && instance.play) {
             instance.play()
             console.log('iOS: Vídeo iniciado via ConvertAI API (startVideo)')
@@ -114,7 +114,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       
       if (isIOS) {
         // Para iOS com ConvertAI player
-        const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+        const player = document.querySelector('#vid_684112dbb91e43e9317649b0')
         const video = player?.querySelector('video') as HTMLVideoElement
         if (video) {
           video.volume = clampedVolume
@@ -131,7 +131,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         
         // Tentar também via API do ConvertAI se disponível
         if ((window as any).smartplayer && (window as any).smartplayer.instances) {
-          const instance = (window as any).smartplayer.instances['6837a8d8357fd7f67137cd7c']
+          const instance = (window as any).smartplayer.instances['684112dbb91e43e9317649b0']
           if (instance && instance.setVolume) {
             instance.setVolume(clampedVolume)
             console.log(`Volume ConvertAI (API) ajustado para: ${Math.round(clampedVolume * 100)}%`)
@@ -173,7 +173,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         console.log('iOS: Timer de encerramento automático (11 minutos) expirou. Chamando onVideoEnd.');
         onVideoEnd();
         meetingEndTimerIdRef.current = null;
-      }, 660000); // 11 minutos = 660000 ms
+      }, 700000); // aproximadamente 12 minutos = 700000 ms
     }
 
     return () => {
@@ -203,38 +203,38 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       const styleSheet = document.createElement('style');
       styleSheet.id = 'converteai-custom-style';
       styleSheet.textContent = `
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-controls-bar,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress-bar,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-time,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-duration,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-controller-mask,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-fake-bar,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-control-bar,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-controller,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons-left,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons-right,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-play-icon,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-icon,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-info-panel,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-menu,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-notice,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-mobile-play,
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-offline-content,
-        #vid_6837a8d8357fd7f67137cd7c .vjs-progress-control,
-        #vid_6837a8d8357fd7f67137cd7c .vjs-time-control,
-        #vid_6837a8d8357fd7f67137cd7c .vjs-current-time,
-        #vid_6837a8d8357fd7f67137cd7c .vjs-duration,
-        #vid_6837a8d8357fd7f67137cd7c .vjs-remaining-time,
-        #vid_6837a8d8357fd7f67137cd7c .vjs-control-bar { 
+        #vid_684112dbb91e43e9317649b0 .smartplayer-controls-bar,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-progress-bar,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-time,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-duration,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-progress,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-controller-mask,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-fake-bar,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-control-bar,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-resume,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-controller,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-icons,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-icons-left,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-icons-right,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-play-icon,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-icon,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-info-panel,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-menu,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-notice,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-mobile-play,
+        #vid_684112dbb91e43e9317649b0 .smartplayer-offline-content,
+        #vid_684112dbb91e43e9317649b0 .vjs-progress-control,
+        #vid_684112dbb91e43e9317649b0 .vjs-time-control,
+        #vid_684112dbb91e43e9317649b0 .vjs-current-time,
+        #vid_684112dbb91e43e9317649b0 .vjs-duration,
+        #vid_684112dbb91e43e9317649b0 .vjs-remaining-time,
+        #vid_684112dbb91e43e9317649b0 .vjs-control-bar { 
           display: none !important; 
           visibility: hidden !important; 
           opacity: 0 !important; 
           pointer-events: none !important; 
         }
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume, 
+        #vid_684112dbb91e43e9317649b0 .smartplayer-resume, 
         .smartplayer-resume { 
           display: none !important; 
           visibility: hidden !important; 
@@ -245,20 +245,20 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           top: -9999px !important; 
           z-index: -1 !important; 
         }
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-content { 
+        #vid_684112dbb91e43e9317649b0 .smartplayer-content { 
           display: block !important; 
           visibility: visible !important; 
           opacity: 1 !important; 
         }
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-play-button, 
-        #vid_6837a8d8357fd7f67137cd7c .vjs-big-play-button, 
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-poster, 
-        #vid_6837a8d8357fd7f67137cd7c img, 
-        #vid_6837a8d8357fd7f67137cd7c .smartplayer-thumbnail { 
+        #vid_684112dbb91e43e9317649b0 .smartplayer-play-button, 
+        #vid_684112dbb91e43e9317649b0 .vjs-big-play-button, 
+        #vid_684112dbb91e43e9317649b0 .smartplayer-poster, 
+        #vid_684112dbb91e43e9317649b0 img, 
+        #vid_684112dbb91e43e9317649b0 .smartplayer-thumbnail { 
           pointer-events: auto !important; 
           z-index: 10 !important; 
         }
-        #vid_6837a8d8357fd7f67137cd7c { 
+        #vid_684112dbb91e43e9317649b0 { 
           pointer-events: auto !important; 
         }
       `;
@@ -267,7 +267,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     };
 
     // Verificar se script já existe
-    const existingScript = document.getElementById('scr_6837a8d8357fd7f67137cd7c');
+    const existingScript = document.getElementById('scr_684112dbb91e43e9317649b0');
     
     if (existingScript) {
       console.log('iOS: Script ConvertAI já existe.');
@@ -282,8 +282,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
     // Carregar script
     const script = document.createElement('script');
-    script.id = 'scr_6837a8d8357fd7f67137cd7c';
-    script.src = 'https://scripts.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6837a8d8357fd7f67137cd7c/player.js';
+    script.id = 'scr_684112dbb91e43e9317649b0';
+    script.src = 'https://scripts.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/684112dbb91e43e9317649b0/player.js';
     script.async = true;
 
     script.onload = () => {
@@ -301,7 +301,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       console.log('iOS: Limpando useEffect principal do iOS.');
       
       // Remover script de forma segura
-      const scriptToRemove = document.getElementById('scr_6837a8d8357fd7f67137cd7c');
+      const scriptToRemove = document.getElementById('scr_684112dbb91e43e9317649b0');
       if (scriptToRemove && scriptToRemove.parentNode) {
         try {
           scriptToRemove.parentNode.removeChild(scriptToRemove);
@@ -405,7 +405,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       
       if (isIOS) {
         // Para iOS com ConvertAI player
-        const syncPlayer = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+        const syncPlayer = document.querySelector('#vid_684112dbb91e43e9317649b0')
         const syncVideo = syncPlayer?.querySelector('video') as HTMLVideoElement
         if (syncVideo) {
           syncVideo.volume = volume
@@ -422,7 +422,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         
         // Tentar também via API do ConvertAI se disponível
         if ((window as any).smartplayer && (window as any).smartplayer.instances) {
-          const instance = (window as any).smartplayer.instances['6837a8d8357fd7f67137cd7c']
+          const instance = (window as any).smartplayer.instances['684112dbb91e43e9317649b0']
           if (instance && instance.setVolume) {
             instance.setVolume(volume)
             console.log(`Volume ConvertAI (API) sincronizado para: ${Math.round(volume * 100)}%`)
@@ -525,7 +525,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
     if (isIOS) {
       // Para ConvertAI, adiciona listener ao elemento video interno
-      const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+      const player = document.querySelector('#vid_684112dbb91e43e9317649b0')
       const video = player?.querySelector('video') as HTMLVideoElement
       if (video) {
         video.addEventListener("ended", handleVideoEnded)
@@ -564,7 +564,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         setTimeout(() => {
           if (isIOS) {
             // Para iOS com ConvertAI player
-            const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
+            const player = document.querySelector('#vid_684112dbb91e43e9317649b0')
             const video = player?.querySelector('video') as HTMLVideoElement
             
             if (video && video.paused) {
@@ -599,7 +599,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             
             // Tentar também via API do ConvertAI
             if ((window as any).smartplayer && (window as any).smartplayer.instances) {
-              const instance = (window as any).smartplayer.instances['6837a8d8357fd7f67137cd7c']
+              const instance = (window as any).smartplayer.instances['684112dbb91e43e9317649b0']
               if (instance && instance.play) {
                 instance.play()
                 console.log('iOS: Tentativa de retomar via ConvertAI API')
@@ -662,7 +662,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     return (
       <div className="relative h-full w-full bg-gray-900">
         <div 
-          id="vid_6837a8d8357fd7f67137cd7c" 
+          id="vid_684112dbb91e43e9317649b0" 
           style={{ 
             position: 'relative', 
             width: '100%', 
