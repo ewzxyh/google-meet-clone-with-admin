@@ -41,16 +41,16 @@ export default function RoomPage({ params }: { params: Promise<{ meetingId: stri
           }
 
           // Get last video position
-          const { data } = await supabase
-            .from("participants")
-            .select("last_video_position")
-            .eq("meeting_id", meetingId)
-            .eq("name", userName)
-            .single()
+          // const { data } = await supabase
+          //   .from("participants")
+          //   .select("last_video_position")
+          //   .eq("meeting_id", meetingId)
+          //   .eq("name", userName)
+          //   .single()
 
-          if (data && typeof data.last_video_position === 'number') {
-            setLastPosition(data.last_video_position)
-          }
+          // if (data && typeof data.last_video_position === 'number') {
+          //   setLastPosition(data.last_video_position)
+          // }
         } catch (error) {
           console.error("Error fetching data:", error)
         }

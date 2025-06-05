@@ -56,7 +56,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
     }
   }, [])
 
-  const markMeetingAsEnded = async () => {
+  const markMeetingAsEnded = useCallback(async () => {
     if (isMarkingAsEnded) {
       console.log("Already marking meeting as ended, skipping...")
       return
@@ -88,7 +88,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
     } finally {
       setIsMarkingAsEnded(false)
     }
-  }
+  }, [isMarkingAsEnded, meetingId])
 
   const handleVideoEnd = useCallback(async () => {
     console.log("Video ended, ending meeting...")
@@ -96,30 +96,30 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
     
     // Marcar a reunião como finalizada no banco de dados
     await markMeetingAsEnded()
-  }, [])
+  }, [markMeetingAsEnded])
 
-  const handleEndMeeting = async () => {
+  const handleEndMeeting = useCallback(async () => {
     console.log("User ending meeting...")
     
     // Marcar a reunião como finalizada no banco de dados antes de sair
     await markMeetingAsEnded()
     
     router.push("/")
-  }
+  }, [markMeetingAsEnded, router])
 
-  const confirmEndMeeting = () => {
+  const confirmEndMeeting = useCallback(() => {
     setShowEndMeetingDialog(false)
     handleEndMeeting()
-  }
+  }, [handleEndMeeting])
 
-  const handleReturnHome = () => {
+  const handleReturnHome = useCallback(() => {
     console.log("Returning to home page...")
     router.push("/")
-  }
+  }, [router])
 
-  const toggleChat = () => {
+  const toggleChat = useCallback(() => {
     setIsChatOpen(!isChatOpen)
-  }
+  }, [isChatOpen])
 
   // Marcar reunião como encerrada quando o componente for desmontado
   useEffect(() => {
@@ -135,7 +135,7 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
         markMeetingAsEnded()
       }
     }
-  }, [isEnded, isMarkingAsEnded])
+  }, [isEnded, isMarkingAsEnded, markMeetingAsEnded])
 
   const handleVolumeChange = useCallback((newVolume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, newVolume))
@@ -154,8 +154,6 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
       handleVolumeChange(0)
     }
   }, [isMuted, volume, handleVolumeChange])
-
-
 
   if (isEnded) {
     return (

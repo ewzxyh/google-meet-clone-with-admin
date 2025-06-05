@@ -27,6 +27,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [currentVolume, setCurrentVolume] = useState(volume)
   const [isScriptLoaded, setIsScriptLoaded] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
+  const meetingEndTimerIdRef = useRef<number | null>(null)
 
   // Detectar iOS NATIVO (não navegador web desktop)
   const isIOS = typeof window !== 'undefined' && (
@@ -153,404 +154,175 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     getVolume: () => currentVolume
   }))
 
-  // Carregar script do ConvertAI e aplicar CSS para iOS
+  // Timer automático de 11 minutos para iOS
   useEffect(() => {
-    if (!isIOS) return // Apenas para iOS
-
-    // Função para aplicar CSS ao player ConvertAI
-    const applyConvertAICss = () => {
-      const mainPlayer = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
-      if (mainPlayer) {
-        // Adicionar log para verificar a existência do smartplayer-content
-        const smartPlayerContent = mainPlayer.querySelector('.smartplayer-content')
-        if (smartPlayerContent) {
-          console.log('iOS: smartplayer-content encontrado no DOM.')
-        } else {
-          console.log('iOS: smartplayer-content NÃO encontrado no DOM.')
-        }
-
-        // Remover estilos existentes para evitar duplicação ou conflito
-        let existingStyle = document.getElementById('converteai-custom-style')
-        if (existingStyle) {
-          existingStyle.remove()
-        }
-
-        const style = document.createElement('style')
-        style.id = 'converteai-custom-style'
-        style.textContent = `
-                      #vid_6837a8d8357fd7f67137cd7c .smartplayer-controls-bar,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress-bar,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-time,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-duration,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-controller-mask,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-fake-bar,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-control-bar,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-controller,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons-left,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons-right,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-play-icon,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-icon,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-info-panel,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-menu,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-notice,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-mobile-play,
-            #vid_6837a8d8357fd7f67137cd7c .smartplayer-offline-content,
-            #vid_6837a8d8357fd7f67137cd7c .vjs-progress-control,
-            #vid_6837a8d8357fd7f67137cd7c .vjs-time-control,
-            #vid_6837a8d8357fd7f67137cd7c .vjs-current-time,
-            #vid_6837a8d8357fd7f67137cd7c .vjs-duration,
-            #vid_6837a8d8357fd7f67137cd7c .vjs-remaining-time,
-            #vid_6837a8d8357fd7f67137cd7c .vjs-control-bar {
-              display: none !important;
-              visibility: hidden !important;
-              opacity: 0 !important;
-              pointer-events: none !important;
-            }
-          /* IMPEDIR POPUP DE RESUME - força esconder com máxima prioridade */
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume,
-          .smartplayer-resume {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-            position: absolute !important;
-            left: -9999px !important;
-            top: -9999px !important;
-            z-index: -1 !important;
-          }
-          /* Garantir que o conteúdo do player ConvertAI esteja sempre visível */
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-content {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-          }
-          /* O video interno do ConvertAI PODE ter pointer-events: none no overlay, mas não no CSS base */
-          /* #vid_6837a8d8357fd7f67137cd7c video {
-            pointer-events: none !important;
-          } */
-          /* O play button inicial e o poster precisam ser clicáveis para desmutar */
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-play-button,
-          #vid_6837a8d8357fd7f67137cd7c .vjs-big-play-button,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-poster,
-          #vid_6837a8d8357fd7f67137cd7c img,
-          #vid_6837a8d8357fd7f67137cd7c .smartplayer-thumbnail {
-            pointer-events: auto !important;
-            z-index: 10 !important;
-          }
-          /* O container principal do player deve ser clicável inicialmente para iOS desmutar */
-          #vid_6837a8d8357fd7f67137cd7c {
-            pointer-events: auto !important;
-          }
-        `
-        document.head.appendChild(style)
-
-        // Prevenir pause no vídeo de forma mais robusta (para o video interno do ConvertAI)
-        const videoElement = mainPlayer.querySelector('video') as HTMLVideoElement
-        if (videoElement) {
-          let isPlaying = false
-          
-          // Listener para quando o vídeo estiver pronto para reproduzir
-          videoElement.addEventListener('loadeddata', () => {
-            console.log('iOS: Vídeo carregado - tentando autoplay')
-            if (!hasStarted) {
-              videoElement.setAttribute('webkit-playsinline', 'true')
-              videoElement.setAttribute('playsinline', 'true')
-              videoElement.setAttribute('muted', 'true')
-              videoElement.setAttribute('autoplay', 'true')
-              
-              videoElement.playsInline = true
-              videoElement.muted = true
-              videoElement.autoplay = true
-              videoElement.controls = false
-              
-              videoElement.play().catch(error => {
-                console.log('iOS: Autoplay falhou em loadeddata:', error.name)
-              })
-            }
-          })
-          
-          // Listener para quando o vídeo pode começar a reproduzir
-          videoElement.addEventListener('canplay', () => {
-            console.log('iOS: Vídeo pode reproduzir - tentando autoplay')
-            if (!hasStarted) {
-              videoElement.play().catch(error => {
-                console.log('iOS: Autoplay falhou em canplay:', error.name)
-              })
-            }
-          })
-          
-          videoElement.addEventListener('play', () => {
-            isPlaying = true
-            // Garantir que as propriedades estejam sempre aplicadas via atributos e propriedades
-            videoElement.setAttribute('playsinline', 'true')
-            videoElement.setAttribute('autoplay', 'true')
-            
-            videoElement.playsInline = true
-            videoElement.autoplay = true
-            videoElement.controls = false
-            
-            console.log('iOS: Vídeo interno do ConvertAI iniciou - prevenção de pause ativada com propriedades aplicadas')
-            setHasStarted(true) // Definir hasStarted aqui para garantir
-          })
-          
-          videoElement.addEventListener('pause', (e: Event) => {
-            if (isPlaying && !videoElement.ended) {
-              console.log('iOS: Tentativa de pause detectada no vídeo interno - forçando play')
-              e.preventDefault()
-              setTimeout(() => {
-                if (videoElement.paused && !videoElement.ended) {
-                  videoElement.play().catch(console.error)
-                }
-              }, 10)
-            }
-          })
-        }
-
-        // RE-ADICIONANDO Observer para garantir a visibilidade do smartplayer-content
-        const visibilityObserver = new MutationObserver((mutations) => {
-          mutations.forEach((mutation) => {
-            if (mutation.type === 'attributes' && (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
-              const targetElement = mutation.target as HTMLElement;
-              // Verifica se o elemento ou um de seus pais contém a classe smartplayer-content
-              // ou se o elemento é o próprio mainPlayer (vid_6837a8d8357fd7f67137cd7c)
-              if (targetElement.classList.contains('smartplayer-content') || targetElement.id === 'vid_6837a8d8357fd7f67137cd7c') {
-                const computedStyle = window.getComputedStyle(targetElement);
-                if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden' || computedStyle.opacity === '0') {
-                  targetElement.style.display = 'block';
-                  targetElement.style.visibility = 'visible';
-                  targetElement.style.opacity = '1';
-                  console.log('iOS: smartplayer-content ou player principal forçado a ser visível via MutationObserver');
-                }
-              }
-              
-              // IMPEDIR POPUP DE RESUME - forçar esconder se aparecer
-              if (targetElement.classList.contains('smartplayer-resume')) {
-                targetElement.style.display = 'none';
-                targetElement.style.visibility = 'hidden';
-                targetElement.style.opacity = '0';
-                targetElement.style.pointerEvents = 'none';
-                targetElement.style.position = 'absolute';
-                targetElement.style.left = '-9999px';
-                targetElement.style.top = '-9999px';
-                targetElement.style.zIndex = '-1';
-                console.log('iOS: Popup de resume forçadamente escondido via MutationObserver');
-              }
-              
-              // ESCONDER CONTROLES DO PLAYER - forçar esconder se aparecerem
-              const controlClasses = [
-                'smartplayer-controller',
-                'smartplayer-icons',
-                'smartplayer-icons-left', 
-                'smartplayer-icons-right',
-                'smartplayer-play-icon',
-                'smartplayer-icon',
-                'smartplayer-info-panel',
-                'smartplayer-menu',
-                'smartplayer-notice',
-                'smartplayer-mobile-play',
-                'smartplayer-offline-content',
-                'smartplayer-controller-mask',
-                'smartplayer-fake-bar'
-              ];
-              
-              if (controlClasses.some(className => targetElement.classList.contains(className))) {
-                targetElement.style.display = 'none';
-                targetElement.style.visibility = 'hidden';
-                targetElement.style.opacity = '0';
-                targetElement.style.pointerEvents = 'none';
-                console.log('iOS: Controle do player escondido via MutationObserver:', targetElement.className);
-              }
-            }
-          })
-        })
-        
-        const observerTarget = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
-        if (observerTarget) {
-          visibilityObserver.observe(observerTarget, { 
-            attributes: true, 
-            subtree: true, 
-            attributeFilter: ['style', 'class'] 
-          })
-          // Cleanup observer após um tempo
-          setTimeout(() => {
-            visibilityObserver.disconnect()
-            console.log('iOS: Observer de visibilidade desconectado.')
-          }, 60000) // Desconecta após 60 segundos
-        }
+    if (!isIOS) {
+      // Se não for iOS, limpar qualquer timer existente
+      if (meetingEndTimerIdRef.current) {
+        clearTimeout(meetingEndTimerIdRef.current);
+        console.log('iOS: Dispositivo não é mais iOS, limpando timer de encerramento automático (11 minutos).');
+        meetingEndTimerIdRef.current = null;
       }
+      return;
     }
 
-    // Verificar se o script já existe
-    const existingScript = document.getElementById('scr_6837a8d8357fd7f67137cd7c')
-    if (existingScript) {
-      setIsScriptLoaded(true)
-      applyConvertAICss() // Tentar aplicar CSS novamente em caso de FCR
-      return
+    // Configurar timer automático de 11 minutos para iOS IMEDIATAMENTE
+    if (!meetingEndTimerIdRef.current) {
+      console.log('iOS: Configurando timer de encerramento automático de 11 minutos (INICIANDO AGORA).');
+      meetingEndTimerIdRef.current = window.setTimeout(() => {
+        console.log('iOS: Timer de encerramento automático (11 minutos) expirou. Chamando onVideoEnd.');
+        onVideoEnd();
+        meetingEndTimerIdRef.current = null;
+      }, 660000); // 11 minutos = 660000 ms
     }
-
-    // Criar e carregar o script
-    const script = document.createElement("script")
-    script.id = "scr_6837a8d8357fd7f67137cd7c"
-    script.src = "https://scripts.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6837a8d8357fd7f67137cd7c/player.js"
-    script.async = true
-    
-    script.onload = () => {
-      console.log('ConvertAI script carregado para iOS')
-      setIsScriptLoaded(true)
-      
-      applyConvertAICss() // Aplicar CSS após o script carregar
-      
-      // Esconder controles imediatamente após carregar
-      setTimeout(() => {
-        const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
-        if (player) {
-          const controlSelectors = [
-            '.smartplayer-controller',
-            '.smartplayer-icons',
-            '.smartplayer-icons-left', 
-            '.smartplayer-icons-right',
-            '.smartplayer-play-icon',
-            '.smartplayer-icon',
-            '.smartplayer-info-panel',
-            '.smartplayer-menu',
-            '.smartplayer-notice',
-            '.smartplayer-mobile-play',
-            '.smartplayer-offline-content',
-            '.smartplayer-controller-mask',
-            '.smartplayer-fake-bar'
-          ]
-          
-          controlSelectors.forEach(selector => {
-            const elements = player.querySelectorAll(selector)
-            elements.forEach(element => {
-              const el = element as HTMLElement
-              el.style.display = 'none'
-              el.style.visibility = 'hidden'
-              el.style.opacity = '0'
-              el.style.pointerEvents = 'none'
-            })
-          })
-          console.log('iOS: Controles escondidos imediatamente após carregamento')
-        }
-      }, 100)
-      
-      // Estratégia robusta para autoplay no iPhone
-      const tryAutoplay = (attempt = 1, maxAttempts = 10) => {
-        setTimeout(() => {
-          const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
-          const video = player?.querySelector('video') as HTMLVideoElement
-          
-          if (video) {
-            console.log(`iOS: Tentativa ${attempt} de autoplay - readyState: ${video.readyState}`)
-            
-            // Forçar configuração mais agressiva
-            video.setAttribute('webkit-playsinline', 'true')
-            video.setAttribute('playsinline', 'true')
-            video.setAttribute('muted', 'true')
-            video.setAttribute('autoplay', 'true')
-            video.setAttribute('preload', 'auto')
-            
-            // Propriedades JavaScript
-            video.playsInline = true
-            video.muted = true
-            video.autoplay = true
-            video.controls = false
-            video.preload = 'auto'
-            
-            // Verificar se o vídeo já está tocando
-            if (!video.paused && video.currentTime > 0) {
-              console.log(`iOS: Vídeo já está tocando na tentativa ${attempt}`)
-              setHasStarted(true)
-              return
-            }
-            
-            // Tentar reproduzir de forma mais agressiva
-            const playPromise = video.play()
-            
-            if (playPromise !== undefined) {
-              playPromise.then(() => {
-                console.log(`iOS: Autoplay bem-sucedido na tentativa ${attempt}`)
-                setHasStarted(true)
-              }).catch(error => {
-                console.error(`iOS: Erro no autoplay tentativa ${attempt}:`, error.name, error.message)
-                
-                // Estratégias específicas baseadas no tipo de erro
-                if (error.name === 'NotAllowedError') {
-                  console.log('iOS: NotAllowedError - aguardando interação do usuário')
-                } else if (error.name === 'AbortError') {
-                  console.log('iOS: AbortError - tentando novamente imediatamente')
-                  if (attempt < maxAttempts) {
-                    tryAutoplay(attempt + 1, maxAttempts)
-                  }
-                } else {
-                  // Para outros erros, continuar tentando
-                  if (attempt < maxAttempts) {
-                    console.log(`iOS: Tentando autoplay novamente em 300ms (tentativa ${attempt + 1})`)
-                    tryAutoplay(attempt + 1, maxAttempts)
-                  } else {
-                    console.log('iOS: Todas as tentativas de autoplay falharam - aguardando interação do usuário')
-                  }
-                }
-              })
-            } else {
-              console.log(`iOS: play() não retornou Promise na tentativa ${attempt}`)
-              if (attempt < maxAttempts) {
-                tryAutoplay(attempt + 1, maxAttempts)
-              }
-            }
-          } else {
-            console.log(`iOS: Vídeo não encontrado na tentativa ${attempt}`)
-            if (attempt < maxAttempts) {
-              tryAutoplay(attempt + 1, maxAttempts)
-            }
-          }
-        }, attempt === 1 ? 500 : 300) // Delays menores para mais agressividade
-      }
-      
-      // Iniciar tentativas de autoplay
-      tryAutoplay()
-      
-      // Polling adicional para verificar se o vídeo iniciou
-      const checkVideoStatus = setInterval(() => {
-        const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
-        const video = player?.querySelector('video') as HTMLVideoElement
-        
-        if (video && !video.paused && video.currentTime > 0 && !hasStarted) {
-          console.log('iOS: Vídeo detectado como tocando via polling')
-          setHasStarted(true)
-          clearInterval(checkVideoStatus)
-        }
-      }, 500)
-      
-      // Limpar polling após 30 segundos
-      setTimeout(() => {
-        clearInterval(checkVideoStatus)
-      }, 30000)
-    }
-
-    script.onerror = () => {
-      console.error('Erro ao carregar script ConvertAI')
-    }
-
-    document.head.appendChild(script)
 
     return () => {
-      // Cleanup - remover script e style tag se necessário
-      const scriptToRemove = document.getElementById('scr_6837a8d8357fd7f67137cd7c')
-      if (scriptToRemove) {
-        document.head.removeChild(scriptToRemove)
-        console.log('ConvertAI script removido do DOM.')
+      if (meetingEndTimerIdRef.current) {
+        clearTimeout(meetingEndTimerIdRef.current);
+        console.log('iOS: Timer de encerramento automático (11 minutos) limpo no cleanup.');
+        meetingEndTimerIdRef.current = null;
       }
-      const styleToRemove = document.getElementById('converteai-custom-style')
-      if (styleToRemove) {
-        document.head.removeChild(styleToRemove)
-        console.log('ConvertAI custom style removido do DOM.')
-      }
+    };
+  }, [isIOS, onVideoEnd]);
+
+  // Carregar script do ConvertAI e aplicar CSS para iOS
+  useEffect(() => {
+    if (!isIOS) {
+      return;
     }
-  }, [isIOS]); // Dependência apenas em isIOS
+
+    console.log('iOS: Iniciando setup específico do iOS (script e CSS).');
+
+    // Aplicar CSS customizado
+    const applyCustomCSS = () => {
+      const existingStyle = document.getElementById('converteai-custom-style');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+
+      const styleSheet = document.createElement('style');
+      styleSheet.id = 'converteai-custom-style';
+      styleSheet.textContent = `
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-controls-bar,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress-bar,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-time,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-duration,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-progress,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-controller-mask,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-fake-bar,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-control-bar,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-controller,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons-left,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-icons-right,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-play-icon,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-icon,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-info-panel,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-menu,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-notice,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-mobile-play,
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-offline-content,
+        #vid_6837a8d8357fd7f67137cd7c .vjs-progress-control,
+        #vid_6837a8d8357fd7f67137cd7c .vjs-time-control,
+        #vid_6837a8d8357fd7f67137cd7c .vjs-current-time,
+        #vid_6837a8d8357fd7f67137cd7c .vjs-duration,
+        #vid_6837a8d8357fd7f67137cd7c .vjs-remaining-time,
+        #vid_6837a8d8357fd7f67137cd7c .vjs-control-bar { 
+          display: none !important; 
+          visibility: hidden !important; 
+          opacity: 0 !important; 
+          pointer-events: none !important; 
+        }
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-resume, 
+        .smartplayer-resume { 
+          display: none !important; 
+          visibility: hidden !important; 
+          opacity: 0 !important; 
+          pointer-events: none !important; 
+          position: absolute !important; 
+          left: -9999px !important; 
+          top: -9999px !important; 
+          z-index: -1 !important; 
+        }
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-content { 
+          display: block !important; 
+          visibility: visible !important; 
+          opacity: 1 !important; 
+        }
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-play-button, 
+        #vid_6837a8d8357fd7f67137cd7c .vjs-big-play-button, 
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-poster, 
+        #vid_6837a8d8357fd7f67137cd7c img, 
+        #vid_6837a8d8357fd7f67137cd7c .smartplayer-thumbnail { 
+          pointer-events: auto !important; 
+          z-index: 10 !important; 
+        }
+        #vid_6837a8d8357fd7f67137cd7c { 
+          pointer-events: auto !important; 
+        }
+      `;
+      document.head.appendChild(styleSheet);
+      console.log('iOS: CSS personalizado aplicado.');
+    };
+
+    // Verificar se script já existe
+    const existingScript = document.getElementById('scr_6837a8d8357fd7f67137cd7c');
+    
+    if (existingScript) {
+      console.log('iOS: Script ConvertAI já existe.');
+      setIsScriptLoaded(true);
+      // Aplicar CSS mesmo com script existente
+      applyCustomCSS();
+      return;
+    }
+
+    // Aplicar CSS primeiro
+    applyCustomCSS();
+
+    // Carregar script
+    const script = document.createElement('script');
+    script.id = 'scr_6837a8d8357fd7f67137cd7c';
+    script.src = 'https://scripts.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6837a8d8357fd7f67137cd7c/player.js';
+    script.async = true;
+
+    script.onload = () => {
+      console.log('iOS: Script ConvertAI carregado.');
+      setIsScriptLoaded(true);
+    };
+
+    script.onerror = (error) => {
+      console.error('iOS: Erro ao carregar script ConvertAI:', error);
+    };
+
+    document.head.appendChild(script);
+
+    return () => {
+      console.log('iOS: Limpando useEffect principal do iOS.');
+      
+      // Remover script de forma segura
+      const scriptToRemove = document.getElementById('scr_6837a8d8357fd7f67137cd7c');
+      if (scriptToRemove && scriptToRemove.parentNode) {
+        try {
+          scriptToRemove.parentNode.removeChild(scriptToRemove);
+          console.log('iOS: Script ConvertAI removido com sucesso.');
+        } catch (error) {
+          console.log('iOS: Script já foi removido ou não é filho do elemento pai.');
+        }
+      }
+      
+      // Remover estilo de forma segura
+      const styleToRemove = document.getElementById('converteai-custom-style');
+      if (styleToRemove && styleToRemove.parentNode) {
+        try {
+          styleToRemove.parentNode.removeChild(styleToRemove);
+          console.log('iOS: Estilo customizado removido com sucesso.');
+        } catch (error) {
+          console.log('iOS: Estilo já foi removido ou não é filho do elemento pai.');
+        }
+      }
+    };
+  }, [isIOS, onVideoEnd, hasStarted]); // Dependências para o setup principal do iOS
 
   // Debug dos estados
   useEffect(() => {
@@ -564,73 +336,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       hasTouch: typeof window !== 'undefined' ? 'ontouchstart' in window : false
     })
   }, [isIOS, isScriptLoaded, hasStarted, currentVolume])
-
-  // Detectar primeira interação do usuário para forçar autoplay no iPhone
-  useEffect(() => {
-    if (!isIOS) return
-
-    const handleFirstInteraction = () => {
-      console.log('iOS: Primeira interação detectada - tentando forçar autoplay IMEDIATAMENTE')
-      
-      const player = document.querySelector('#vid_6837a8d8357fd7f67137cd7c')
-      const video = player?.querySelector('video') as HTMLVideoElement
-      
-      if (video) {
-        // Configuração mais agressiva para autoplay mutado após interação
-        video.setAttribute('webkit-playsinline', 'true')
-        video.setAttribute('playsinline', 'true')
-        video.setAttribute('muted', 'true')
-        video.setAttribute('autoplay', 'true')
-        video.setAttribute('preload', 'auto')
-        
-        video.playsInline = true
-        video.muted = true
-        video.autoplay = true
-        video.controls = false
-        video.preload = 'auto'
-        
-        // Tentar múltiplas vezes rapidamente após interação
-        let attempts = 0
-        const maxAttempts = 3
-        
-        const tryPlayAfterInteraction = () => {
-          attempts++
-          console.log(`iOS: Tentativa ${attempts} de autoplay após interação`)
-          
-          video.play().then(() => {
-            console.log('iOS: Autoplay forçado com sucesso após primeira interação')
-            setHasStarted(true)
-            // Remove os listeners após sucesso
-            document.removeEventListener('touchstart', handleFirstInteraction)
-            document.removeEventListener('click', handleFirstInteraction)
-            document.removeEventListener('touchend', handleFirstInteraction)
-            document.removeEventListener('mousedown', handleFirstInteraction)
-          }).catch(error => {
-            console.error(`iOS: Erro ao forçar autoplay após interação (tentativa ${attempts}):`, error.name, error.message)
-            
-            if (attempts < maxAttempts) {
-              setTimeout(tryPlayAfterInteraction, 100)
-            }
-          })
-        }
-        
-        // Iniciar tentativas imediatamente
-        tryPlayAfterInteraction()
-      }
-    }
-
-    // Adicionar listeners para QUALQUER tipo de interação
-    const events = ['touchstart', 'touchend', 'click', 'mousedown']
-    events.forEach(event => {
-      document.addEventListener(event, handleFirstInteraction, { once: true, passive: true })
-    })
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, handleFirstInteraction)
-      })
-    }
-  }, [isIOS])
 
   // Para dispositivos não-iOS (navegadores web), iniciar automaticamente
   useEffect(() => {
@@ -962,6 +667,13 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             position: 'relative', 
             width: '100%', 
             padding: '66.66666666666666% 0 0' // Reintroduzir o padding para o aspecto de vídeo
+          }}
+          ref={(el) => {
+            // Garantir que o container existe quando o DOM é criado
+            if (el && !el.hasAttribute('data-initialized')) {
+              el.setAttribute('data-initialized', 'true');
+              console.log('iOS: Container do player criado e marcado como inicializado. ID:', el.id);
+            }
           }}
         >
           {/* Deixar vazio para o ConvertAI criar seus próprios elementos */}

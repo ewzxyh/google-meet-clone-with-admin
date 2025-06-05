@@ -61,24 +61,6 @@ export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
 
     const supabase = getSupabaseBrowser()
 
-    // Add participant to the database if Supabase is available
-    if (supabase) {
-      try {
-        await supabase.from("participants").upsert(
-          {
-            meeting_id: meetingId,
-            name: name.trim(),
-            last_video_position: 0,
-          },
-          {
-            onConflict: "meeting_id,name",
-          },
-        )
-      } catch (error) {
-        console.error("Error adding participant:", error)
-      }
-    }
-
     // Redirect to the meeting room regardless of database operation
     router.push(`/${meetingId}/room?name=${encodeURIComponent(name)}&videoUrl=${encodeURIComponent(videoUrl)}`)
   }
