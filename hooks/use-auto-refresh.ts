@@ -10,11 +10,27 @@ interface UseAutoRefreshProps {
 
 export function useAutoRefresh({ 
   onDataUpdate, 
-  intervalMs = 5000, // 5 segundos por padrão
+  intervalMs = 5000,
   enabled = true 
 }: UseAutoRefreshProps) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const isRefreshingRef = useRef(false)
+  const onDataUpdateRef = useRef(onDataUpdate)
+  const enabledRef = useRef(enabled)
+  const intervalMsRef = useRef(intervalMs)
+
+  // Manter as referências atualizadas sem causar re-renders
+  useEffect(() => {
+    onDataUpdateRef.current = onDataUpdate
+  }, [onDataUpdate])
+
+  useEffect(() => {
+    enabledRef.current = enabled
+  }, [enabled])
+
+  useEffect(() => {
+    intervalMsRef.current = intervalMs
+  }, [intervalMs])
 
   const fetchMeetings = useCallback(async () => {
     if (isRefreshingRef.current) return
@@ -34,14 +50,13 @@ export function useAutoRefresh({
         .order("created_at", { ascending: false })
 
       if (!error && data) {
-        // Traduzir status para português
         const translatedMeetings: Meeting[] = data.map((meeting: any) => ({
           ...meeting,
           status: meeting.status === 'active' ? 'Ativado' : 
                   meeting.status === 'ended' ? 'Finalizado' : 
                   meeting.status
         }))
-        onDataUpdate(translatedMeetings)
+        onDataUpdateRef.current(translatedMeetings)
       } else if (error) {
         console.error("Erro ao buscar reuniões:", error)
       }
@@ -50,17 +65,25 @@ export function useAutoRefresh({
     } finally {
       isRefreshingRef.current = false
     }
-  }, [onDataUpdate])
+  }, []) // Sem dependências para ser estável
 
   const startAutoRefresh = useCallback(() => {
+    // Limpar interval existente
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
+      intervalRef.current = null
     }
     
-    if (enabled) {
-      intervalRef.current = setInterval(fetchMeetings, intervalMs)
+    // Só iniciar se enabled
+    if (enabledRef.current) {
+      intervalRef.current = setInterval(() => {
+        // Verificar novamente se ainda está enabled no momento da execução
+        if (enabledRef.current) {
+          fetchMeetings()
+        }
+      }, intervalMsRef.current)
     }
-  }, [fetchMeetings, intervalMs, enabled])
+  }, [fetchMeetings])
 
   const stopAutoRefresh = useCallback(() => {
     if (intervalRef.current) {
@@ -73,23 +96,28 @@ export function useAutoRefresh({
     fetchMeetings()
   }, [fetchMeetings])
 
+  // Effect principal para controlar o interval
   useEffect(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-    
     if (enabled) {
-      intervalRef.current = setInterval(fetchMeetings, intervalMs)
+      startAutoRefresh()
+    } else {
+      stopAutoRefresh()
     }
 
+    return () => {
+      stopAutoRefresh()
+    }
+  }, [enabled, startAutoRefresh, stopAutoRefresh])
+
+  // Cleanup na desmontagem
+  useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
     }
-  }, [enabled, intervalMs, fetchMeetings])
+  }, [])
 
   return {
     refreshNow,

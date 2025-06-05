@@ -786,7 +786,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             console.log('Navegador Web: Clique no overlay bloqueado - vídeo não pode ser pausado')
           }}
           onTouchStart={(e) => {
-            e.preventDefault()
             e.stopPropagation()
           }}
           onTouchEnd={(e) => {

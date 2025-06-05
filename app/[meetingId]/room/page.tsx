@@ -40,6 +40,13 @@ export default function RoomPage({ params }: { params: Promise<{ meetingId: stri
             return
           }
 
+          // Mark the meeting as ended as soon as the user joins the room
+          const { error: updateError } = await supabase.from("meetings").update({ status: "ended" }).eq("meeting_id", meetingId)
+          if (updateError) {
+            console.error("Error updating meeting status:", updateError)
+            // Handle error appropriately
+          }
+
           // Get last video position
           // const { data } = await supabase
           //   .from("participants")
@@ -63,7 +70,7 @@ export default function RoomPage({ params }: { params: Promise<{ meetingId: stri
     }
 
     fetchLastPosition()
-  }, [userName, videoUrl, meetingId, router])
+  }, [userName, videoUrl, meetingId])
 
   if (isLoading) {
     return <LoadingScreen userName={userName || ""} />

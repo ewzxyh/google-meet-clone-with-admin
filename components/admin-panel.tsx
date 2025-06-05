@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef, useCallback } from "react"
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -88,10 +88,6 @@ export interface Meeting {
   created_at: string
 }
 
-interface AdminPanelProps {
-  meetings: Meeting[]
-}
-
 // Traduções de status
 const statusTranslations = {
   active: "Ativado",
@@ -100,10 +96,11 @@ const statusTranslations = {
   Finalizado: "ended",
 }
 
-export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProps) {
+export default function AdminPanel() {
   const router = useRouter()
   const { toast } = useToast()
-  const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings)
+  const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [isLoading, setIsLoading] = useState(true);
   const [newMeetingVideoUrl, setNewMeetingVideoUrl] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [dateFilter, setDateFilter] = useState<string>("all")
@@ -129,14 +126,47 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
   const [isCustomDateOverlayOpen, setIsCustomDateOverlayOpen] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   
-  // Sincronizar o estado meetings com a prop initialMeetings
+  // Efeito para buscar os dados iniciais ao montar o componente
   useEffect(() => {
-    setMeetings(initialMeetings);
-  }, [initialMeetings]);
+    const fetchInitialMeetings = async () => {
+      setIsLoading(true);
+      try {
+        const supabase = getSupabaseBrowser();
+        if (!supabase) {
+          console.warn("Supabase client not initialized.");
+          setMeetings([]);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("meetings")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (!error && data) {
+          const translatedMeetings: Meeting[] = data.map((meeting: any) => ({
+            ...meeting,
+            status: meeting.status === 'active' ? 'Ativado' :
+                    meeting.status === 'ended' ? 'Finalizado' :
+                    meeting.status
+          }));
+          setMeetings(translatedMeetings);
+        } else if (error) {
+          console.error("Error fetching meetings:", error);
+        }
+      } catch (error) {
+        console.error("Error in admin panel:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInitialMeetings();
+  }, []); // Executa apenas uma vez
 
   // Hook para refresh automático
-  // A função onDataUpdate precisa traduzir os status se useAutoRefresh buscar dados brutos.
   const handleDataUpdateFromAutoRefresh = useCallback((newMeetingsData: any[]) => {
+    // Apenas atualiza o estado, não precisa de debounce aqui pois a causa do loop foi removida
     const translatedMeetings = newMeetingsData.map((meeting: any) => ({
       ...meeting,
       status: meeting.status === 'active' ? 'Ativado' : 
@@ -144,23 +174,17 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
               meeting.status
     }));
     setMeetings(translatedMeetings);
-  }, []); // setMeetings de useState é estável, então [] é seguro aqui.
+  }, []);
 
-  const { refreshNow, startAutoRefresh, stopAutoRefresh } = useAutoRefresh({
-    onDataUpdate: handleDataUpdateFromAutoRefresh, // Usar a função memorizada e com tradução
-    intervalMs: 5000, 
+  const { refreshNow } = useAutoRefresh({
+    onDataUpdate: handleDataUpdateFromAutoRefresh,
+    intervalMs: 15000, // Aumentado para 15 segundos para ser mais leve
     enabled: autoRefreshEnabled
-  })
+  });
 
-  // Função para alternar auto-refresh
-  const toggleAutoRefresh = () => {
-    setAutoRefreshEnabled(!autoRefreshEnabled)
-    if (!autoRefreshEnabled) {
-      startAutoRefresh()
-    } else {
-      stopAutoRefresh()
-    }
-  }
+  const toggleAutoRefresh = useCallback(() => {
+    setAutoRefreshEnabled(prev => !prev)
+  }, []);
 
   // Carregar URL padrão do localStorage ao iniciar
   useEffect(() => {
@@ -213,6 +237,67 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
     }
   }, [isCustomDateOverlayOpen])
 
+  // Filtrar reuniões com base no status, data e pesquisa - OTIMIZADO
+  const filteredMeetings = useMemo(() => {
+    if (!meetings || meetings.length === 0) return []
+    
+    return meetings.filter((meeting) => {
+      // Status filter
+      if (statusFilter !== "all" && meeting.status !== statusFilter) {
+        return false
+      }
+
+      // Search filter primeiro para performance
+      if (searchQuery.trim() !== "" && !meeting.meeting_id.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false
+      }
+
+      // Date filter
+      if (dateFilter !== "all") {
+        const meetingDate = new Date(meeting.created_at)
+        const today = new Date()
+
+        if (dateFilter === "today") {
+          if (meetingDate.toDateString() !== today.toDateString()) {
+            return false
+          }
+        } else if (dateFilter === "week") {
+          const weekAgo = new Date()
+          weekAgo.setDate(today.getDate() - 7)
+          if (meetingDate < weekAgo) {
+            return false
+          }
+        } else if (dateFilter === "month") {
+          const monthAgo = new Date()
+          monthAgo.setMonth(today.getMonth() - 1)
+          if (meetingDate < monthAgo) {
+            return false
+          }
+        } else if (dateFilter === "custom") {
+          if (customDateRange.from && customDateRange.to) {
+            const toDate = new Date(customDateRange.to)
+            toDate.setHours(23, 59, 59, 999)
+            if (!(meetingDate >= customDateRange.from && meetingDate <= toDate)) {
+              return false
+            }
+          } else if (customDateRange.from) {
+            if (meetingDate < customDateRange.from) {
+              return false
+            }
+          } else if (customDateRange.to) {
+            const toDate = new Date(customDateRange.to)
+            toDate.setHours(23, 59, 59, 999)
+            if (meetingDate > toDate) {
+              return false
+            }
+          }
+        }
+      }
+
+      return true
+    })
+  }, [meetings, statusFilter, dateFilter, customDateRange?.from, customDateRange?.to, searchQuery])
+
   // Salvar URL padrão no localStorage quando mudar
   const saveDefaultUrl = () => {
     const currentSavedUrl = localStorage.getItem("defaultVideoUrl");
@@ -241,26 +326,26 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
   };
 
   // Função para selecionar/desselecionar todas as reuniões visíveis
-  const toggleSelectAll = () => {
-    if (selectedMeetings.length === filteredMeetings.length) {
+  const toggleSelectAll = useCallback(() => {
+    if (selectedMeetings.length === filteredMeetings.length && filteredMeetings.length > 0) {
       setSelectedMeetings([])
     } else {
       setSelectedMeetings(filteredMeetings.map((m) => m.meeting_id))
     }
-  }
+  }, [selectedMeetings, filteredMeetings])
 
   // Função para selecionar/desselecionar uma reunião individual
-  const toggleSelectMeeting = (meetingId: string) => {
+  const toggleSelectMeeting = useCallback((meetingId: string) => {
     setSelectedMeetings((prevSelected) =>
       prevSelected.includes(meetingId) ? prevSelected.filter((id) => id !== meetingId) : [...prevSelected, meetingId],
     )
-  }
+  }, [])
 
   // Função para abrir o diálogo de ação em massa
-  const openBulkActionDialog = (action: "activate" | "end" | "delete") => {
+  const openBulkActionDialog = useCallback((action: "activate" | "end" | "delete") => {
     setBulkActionType(action)
     setIsBulkActionDialogOpen(true)
-  }
+  }, [])
 
   // Função para executar a ação em massa
   const handleBulkAction = async () => {
@@ -334,73 +419,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
     setSelectedMeetings([])
     setIsBulkActionDialogOpen(false)
     setBulkActionType(null)
-    
-    // Refresh automático após ação em massa (apenas se não houve erro)
-    if (!errorOccurred) {
-      setTimeout(() => refreshNow(), 1000)
-    }
   }
-
-  // Filtrar reuniões com base no status, data e pesquisa
-  const filteredMeetings = meetings
-    .filter((meeting) => {
-      // Status filter
-      if (statusFilter !== "all" && meeting.status !== statusFilter) {
-        return false
-      }
-
-      // Date filter
-      if (dateFilter !== "all") {
-        const meetingDate = new Date(meeting.created_at)
-        const today = new Date()
-
-        if (dateFilter === "today") {
-          if (meetingDate.toDateString() !== today.toDateString()) {
-            return false
-          }
-        } else if (dateFilter === "week") {
-          const weekAgo = new Date()
-          weekAgo.setDate(today.getDate() - 7)
-          if (meetingDate < weekAgo) {
-            return false
-          }
-        } else if (dateFilter === "month") {
-          const monthAgo = new Date()
-          monthAgo.setMonth(today.getMonth() - 1)
-          if (meetingDate < monthAgo) {
-            return false
-          }
-        } else if (dateFilter === "custom") {
-          if (customDateRange.from && customDateRange.to) {
-            // Ajustar 'to' para o final do dia para incluir todas as reuniões do dia selecionado
-            const toDate = new Date(customDateRange.to)
-            toDate.setHours(23, 59, 59, 999)
-            if (!(meetingDate >= customDateRange.from && meetingDate <= toDate)) {
-              return false
-            }
-          } else if (customDateRange.from) {
-            if (meetingDate < customDateRange.from) {
-              return false
-            }
-          } else if (customDateRange.to) {
-            // Ajustar 'to' para o final do dia
-            const toDate = new Date(customDateRange.to)
-            toDate.setHours(23, 59, 59, 999)
-            if (meetingDate > toDate) {
-              return false
-            }
-          }
-          // Se custom está selecionado mas nenhuma data foi escolhida, mostra todas as reuniões
-        }
-      }
-
-      return true
-    })
-    .filter((meeting) => {
-      // Search filter
-      if (searchQuery.trim() === "") return true
-      return meeting.meeting_id.toLowerCase().includes(searchQuery.toLowerCase())
-    })
 
   const createMeeting = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -435,9 +454,6 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
 
       setNewMeetingData(newMeetingForState)
       setIsNewMeetingDialogOpen(true)
-      
-      // Refresh automático após criar reunião
-      setTimeout(() => refreshNow(), 1000)
     } else if (error) {
       console.error("Erro ao criar reunião:", error)
       toast({
@@ -499,9 +515,6 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
         meetings.map((meeting) => (meeting.meeting_id === meetingId ? { ...meeting, status: "Finalizado" } : meeting)),
       )
       
-      // Refresh automático após finalizar reunião
-      setTimeout(() => refreshNow(), 1000)
-      
       toast({
         description: (
           <React.Fragment>
@@ -549,9 +562,6 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
       setMeetings(meetings.filter((meeting) => meeting.meeting_id !== meetingId))
       setIsNewMeetingDialogOpen(false)
       
-      // Refresh automático após excluir reunião
-      setTimeout(() => refreshNow(), 1000)
-      
       toast({
         description: (
           <React.Fragment>
@@ -585,6 +595,54 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
     }
   }
 
+  const activateMeeting = useCallback(async (meetingId: string) => {
+    const supabase = getSupabaseBrowser()
+    if (!supabase) {
+      console.warn("Cliente Supabase não inicializado")
+      return
+    }
+
+    const { error } = await supabase
+      .from("meetings")
+      .update({ status: "active" })
+      .eq("meeting_id", meetingId)
+
+    if (!error) {
+      setMeetings(meetings.map(m => 
+        m.meeting_id === meetingId ? { ...m, status: 'Ativado' } : m
+      ))
+      toast({
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-green-100 border-green-400 text-green-500 mr-2 inline-flex items-center justify-center">
+                <Check className="h-5 w-5" />
+              </span>
+              Reunião Ativada
+            </div>
+            {`A reunião ${meetingId} foi reativada.`}
+          </React.Fragment>
+        ),
+        variant: "success",
+      });
+    } else {
+      toast({
+        description: (
+          <React.Fragment>
+            <div className="flex items-center text-lg font-semibold mb-1">
+              <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              Erro ao Ativar
+            </div>
+            Não foi possível reativar a reunião.
+          </React.Fragment>
+        ),
+        variant: "destructive",
+      });
+    }
+  }, [meetings, toast])
+
   const deleteAllEndedMeetings = async () => {
     setIsDeleting(true)
 
@@ -602,9 +660,6 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
       if (!error) {
         // Filtra localmente usando "Finalizado"
         setMeetings(meetings.filter((meeting) => meeting.status !== "Finalizado"))
-        
-        // Refresh automático após excluir reuniões finalizadas
-        setTimeout(() => refreshNow(), 1000)
         
         toast({
           description: (
@@ -640,6 +695,20 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  // Adiciona o retorno do loading UI
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-700 mx-auto mb-4"></div>
+            <p className="text-sky-700 font-medium">Carregando reuniões...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1062,7 +1131,14 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
               </TableRow>
             ) : (
               filteredMeetings.map((meeting) => (
-                <TableRow key={meeting.id} className="border-b-sky-200 hover:bg-sky-50">
+                <TableRow 
+                  key={meeting.id} 
+                  className={cn(
+                    "border-b-sky-200 hover:bg-sky-50",
+                    // Cores de fundo para dispositivos móveis baseadas no status
+                    meeting.status === "Ativado" ? "sm:bg-white bg-green-50" : "sm:bg-white bg-amber-50 opacity-90"
+                  )}
+                >
                   <TableCell className="text-center px-1 py-2 sm:px-2">
                     <Checkbox
                       checked={selectedMeetings.includes(meeting.meeting_id)}
@@ -1143,46 +1219,7 @@ export default function AdminPanel({ meetings: initialMeetings }: AdminPanelProp
                          <Button
                           variant="outline"
                           className="h-9 w-9 p-0 flex items-center justify-center text-green-600 border-green-500 hover:bg-green-100 hover:text-green-700 sm:w-28 sm:px-3"
-                          onClick={() => {
-                            const supabase = getSupabaseBrowser()
-                            if (supabase) {
-                                supabase.from("meetings").update({ status: "active" }).eq("meeting_id", meeting.meeting_id)
-                                .then(({error}) => {
-                                    if (!error) {
-                                        setMeetings(meetings.map(m => m.meeting_id === meeting.meeting_id ? {...m, status: 'Ativado'} : m))
-                                        toast({
-                                          description: (
-                                            <React.Fragment>
-                                              <div className="flex items-center text-lg font-semibold mb-1">
-                                                <span className="p-1 rounded-md border bg-green-100 border-green-400 text-green-500 mr-2 inline-flex items-center justify-center">
-                                                  <Check className="h-5 w-5" />
-                                                </span>
-                                                Reunião Ativada
-                                              </div>
-                                              {`A reunião ${meeting.meeting_id} foi reativada.`}
-                                            </React.Fragment>
-                                          ),
-                                          variant: "success",
-                                        });
-                                    } else {
-                                        toast({
-                                          description: (
-                                            <React.Fragment>
-                                              <div className="flex items-center text-lg font-semibold mb-1">
-                                                <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
-                                                  <AlertTriangle className="h-5 w-5" />
-                                                </span>
-                                                Erro ao Ativar
-                                              </div>
-                                              Não foi possível reativar a reunião.
-                                            </React.Fragment>
-                                          ),
-                                          variant: "destructive",
-                                        });
-                                    }
-                                })
-                            } 
-                          }}
+                          onClick={() => activateMeeting(meeting.meeting_id)}
                           title="Ativar Reunião"
                         >
                           <Power className="h-4 w-4" />
