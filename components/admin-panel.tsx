@@ -1135,8 +1135,8 @@ export default function AdminPanel() {
                   key={meeting.id} 
                   className={cn(
                     "border-b-sky-200 hover:bg-sky-50",
-                    // Cores de fundo para dispositivos móveis baseadas no status
-                    meeting.status === "Ativado" ? "sm:bg-white bg-green-50" : "sm:bg-white bg-amber-50 opacity-90"
+                    // Cores de fundo baseadas no status para todos os dispositivos
+                    meeting.status === "Ativado" ? "bg-green-50" : "bg-amber-50 opacity-90"
                   )}
                 >
                   <TableCell className="text-center px-1 py-2 sm:px-2">
