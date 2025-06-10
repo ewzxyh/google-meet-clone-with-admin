@@ -548,6 +548,7 @@ export default function AdminPanel() {
       )
       
       toast({
+        className: "border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-900/50 dark:border-amber-700 dark:text-amber-300",
         description: (
           <React.Fragment>
             <div className="flex items-center text-lg font-semibold mb-1">
