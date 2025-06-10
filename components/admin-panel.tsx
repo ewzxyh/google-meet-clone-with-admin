@@ -1162,7 +1162,7 @@ export default function AdminPanel() {
               </Button>
               <Button
                 onClick={() => openBulkActionDialog("delete")}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-600 w-full sm:w-auto"
+                className="bg-red-100 hover:bg-red-200 text-red-700 border border-red-500 w-full sm:w-auto"
               >
                 <Trash2 className="mr-2 h-5 w-5" /> Excluir Selecionadas
               </Button>
@@ -1330,7 +1330,7 @@ export default function AdminPanel() {
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="destructive"
-                            className="h-9 w-9 p-0 flex items-center justify-center text-red-600 bg-transparent border border-red-500 hover:bg-red-100 hover:text-red-700 sm:w-auto sm:px-3"
+                            className="h-9 w-9 p-0 flex items-center justify-center text-red-600 bg-red-100 border-red-500 hover:bg-red-200 hover:text-red-700 sm:w-auto sm:px-3"
                             title="Excluir Reunião"
                           >
                             <Trash2 className="h-4 w-4" />
