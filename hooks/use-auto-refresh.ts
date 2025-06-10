@@ -53,7 +53,8 @@ export function useAutoRefresh({
         const translatedMeetings: Meeting[] = data.map((meeting: any) => ({
           ...meeting,
           status: meeting.status === 'active' ? 'Ativado' : 
-                  meeting.status === 'ended' ? 'Finalizado' : 
+                  meeting.status === 'watching' ? 'Assistindo' :
+                  meeting.status === 'ended' ? 'Encerrado' : 
                   meeting.status
         }))
         onDataUpdateRef.current(translatedMeetings)

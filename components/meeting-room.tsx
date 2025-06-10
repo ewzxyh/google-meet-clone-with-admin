@@ -16,11 +16,14 @@ import IOSDebugInfo from "./ios-debug-info"
 interface MeetingRoomProps {
   meetingId: string
   userName: string
-  videoUrl: string
+  divId: string
+  thumbId: string
+  imageUrl: string
+  scriptUrl: string
   initialPosition: number
 }
 
-export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosition }: MeetingRoomProps) {
+export default function MeetingRoom({ meetingId, userName, divId, thumbId, imageUrl, scriptUrl, initialPosition }: MeetingRoomProps) {
   const router = useRouter()
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isEnded, setIsEnded] = useState(false)
@@ -94,18 +97,19 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
     console.log("Video ended, ending meeting...")
     setIsEnded(true)
     
-    // Marcar a reunião como finalizada no banco de dados
+    // Marcar a reunião como encerrada no banco de dados
     await markMeetingAsEnded()
   }, [markMeetingAsEnded])
 
   const handleEndMeeting = useCallback(async () => {
     console.log("User ending meeting...")
     
-    // Marcar a reunião como finalizada no banco de dados antes de sair
+    // Marcar a reunião como encerrada no banco de dados
     await markMeetingAsEnded()
-    
-    router.push("/")
-  }, [markMeetingAsEnded, router])
+
+    // Mostra a tela de reunião encerrada em vez de redirecionar
+    setIsEnded(true)
+  }, [markMeetingAsEnded])
 
   const confirmEndMeeting = useCallback(() => {
     setShowEndMeetingDialog(false)
@@ -121,18 +125,25 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
     setIsChatOpen(!isChatOpen)
   }, [isChatOpen])
 
-  // Marcar reunião como encerrada quando o componente for desmontado
+  // Marcar reunião como encerrada quando o vídeo terminar ou o usuário sair
   useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Este evento é para quando o usuário fecha a aba/navegador
+      if (!isEnded && !isMarkingAsEnded) {
+        markMeetingAsEnded()
+      }
+      // Navegadores modernos podem não mostrar esta mensagem
+      event.preventDefault()
+      event.returnValue = ""
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+
     return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
       // Limpar timeout do volume slider
       if (volumeTimeoutRef.current) {
         clearTimeout(volumeTimeoutRef.current)
-      }
-      
-      // Só marcar como encerrada se não estiver já encerrada e não estiver no processo
-      if (!isEnded && !isMarkingAsEnded) {
-        console.log("Component unmounting, marking meeting as ended...")
-        markMeetingAsEnded()
       }
     }
   }, [isEnded, isMarkingAsEnded, markMeetingAsEnded])
@@ -237,7 +248,10 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                       {/* Video Player */}
                       <VideoPlayer
                         ref={videoPlayerRef}
-                        videoUrl={videoUrl}
+                        divId={divId}
+                        thumbId={thumbId}
+                        imageUrl={imageUrl}
+                        scriptUrl={scriptUrl}
                         initialPosition={initialPosition}
                         onVideoEnd={handleVideoEnd}
                         volume={volume}
@@ -485,8 +499,8 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                       <TooltipTrigger asChild>
                         <Badge variant="outline" className="text-xs px-2 sm:px-3 py-1 bg-white border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer flex items-center space-x-1">
                           <MicOff className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Mic negado</span>
-                          <span className="sm:hidden">Mic negado</span>
+                          <span className="hidden sm:inline">Microfone desativado</span>
+                          <span className="sm:hidden">Microfone desativado</span>
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="bg-gray-800 text-white text-xs px-2 py-1 rounded max-w-xs">
@@ -498,8 +512,8 @@ export default function MeetingRoom({ meetingId, userName, videoUrl, initialPosi
                       <TooltipTrigger asChild>
                         <Badge variant="outline" className="text-xs px-2 sm:px-3 py-1 bg-white border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer flex items-center space-x-1">
                           <VideoOff className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Cam negada</span>
-                          <span className="sm:hidden">Cam negada</span>
+                          <span className="hidden sm:inline">Câmera desativada</span>
+                          <span className="sm:hidden">Câmera desativada</span>
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="bg-gray-800 text-white text-xs px-2 py-1 rounded max-w-xs">

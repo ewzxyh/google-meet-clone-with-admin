@@ -57,16 +57,15 @@ import {
   ToggleRight,
   CalendarPlus,
   Settings,
-  Link,
   CalendarIcon,
   Check,
   Ban,
   SquareCheck,
   SquareX,
-  Info,
   ClipboardCheck,
   X,
   RefreshCw,
+  Eye,
 } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -79,21 +78,31 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
 export interface Meeting {
   id: number
   meeting_id: string
   status: string
-  video_url: string
+  div_id: string
+  thumb_id: string
+  src_images_url: string
+  src_scripts_url: string
   created_at: string
 }
 
 // Traduções de status
 const statusTranslations = {
   active: "Ativado",
-  ended: "Finalizado",
+  watching: "Assistindo",
+  ended: "Encerrado",
   Ativado: "active",
-  Finalizado: "ended",
+  Assistindo: "watching",
+  Encerrado: "ended",
 }
 
 export default function AdminPanel() {
@@ -101,15 +110,14 @@ export default function AdminPanel() {
   const { toast } = useToast()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [isLoading, setIsLoading] = useState(true);
-  const [newMeetingVideoUrl, setNewMeetingVideoUrl] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [dateFilter, setDateFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [isDeleting, setIsDeleting] = useState(false)
-  const [defaultVideoUrl, setDefaultVideoUrl] = useState<string>(
-    "https://mhvzjal0ig61abwu.public.blob.vercel-storage.com/Amanda-QQLE8o1Zw9BaYtLwXmBoIBUToihnWY.mp4",
-  )
-  const [isDefaultUrlDialogOpen, setIsDefaultUrlDialogOpen] = useState(false)
+  const [defaultDivId, setDefaultDivId] = useState<string>("")
+  const [defaultThumbId, setDefaultThumbId] = useState<string>("")
+  const [defaultSrcImagesUrl, setDefaultSrcImagesUrl] = useState<string>("")
+  const [defaultSrcScriptsUrl, setDefaultSrcScriptsUrl] = useState<string>("")
   const [newMeetingData, setNewMeetingData] = useState<Meeting | null>(null)
   const [isNewMeetingDialogOpen, setIsNewMeetingDialogOpen] = useState(false)
   const [selectedMeetings, setSelectedMeetings] = useState<string[]>([])
@@ -117,7 +125,6 @@ export default function AdminPanel() {
   const [bulkActionType, setBulkActionType] = useState<"activate" | "end" | "delete" | null>(null)
   const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>({})
   const [isToDatePickerOpen, setIsToDatePickerOpen] = useState(false)
-  const [isUrlSaveConfirmDialogOpen, setIsUrlSaveConfirmDialogOpen] = useState(false)
   const [copiedMeetingId, setCopiedMeetingId] = useState<string | null>(null);
   const [isCodeCopied, setIsCodeCopied] = useState(false);
   const [isUrlCopied, setIsUrlCopied] = useState(false);
@@ -125,6 +132,7 @@ export default function AdminPanel() {
   const customDateOverlayRef = useRef<HTMLDivElement>(null);
   const [isCustomDateOverlayOpen, setIsCustomDateOverlayOpen] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   // Efeito para buscar os dados iniciais ao montar o componente
   useEffect(() => {
@@ -147,7 +155,8 @@ export default function AdminPanel() {
           const translatedMeetings: Meeting[] = data.map((meeting: any) => ({
             ...meeting,
             status: meeting.status === 'active' ? 'Ativado' :
-                    meeting.status === 'ended' ? 'Finalizado' :
+                    meeting.status === 'watching' ? 'Assistindo' :
+                    meeting.status === 'ended' ? 'Encerrado' :
                     meeting.status
           }));
           setMeetings(translatedMeetings);
@@ -170,7 +179,8 @@ export default function AdminPanel() {
     const translatedMeetings = newMeetingsData.map((meeting: any) => ({
       ...meeting,
       status: meeting.status === 'active' ? 'Ativado' : 
-              meeting.status === 'ended' ? 'Finalizado' : 
+              meeting.status === 'watching' ? 'Assistindo' :
+              meeting.status === 'ended' ? 'Encerrado' : 
               meeting.status
     }));
     setMeetings(translatedMeetings);
@@ -188,11 +198,61 @@ export default function AdminPanel() {
 
   // Carregar URL padrão do localStorage ao iniciar
   useEffect(() => {
-    const savedUrl = localStorage.getItem("defaultVideoUrl")
-    if (savedUrl) {
-      setDefaultVideoUrl(savedUrl)
-    }
+    const savedDivId = localStorage.getItem("defaultDivId") || "vid_6845f57d2f8fb6874f259443";
+    const savedThumbId = localStorage.getItem("defaultThumbId") || "thumb_6845f57d2f8fb6874f259443";
+    const savedImagesUrl = localStorage.getItem("defaultSrcImagesUrl") || "https://images.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6845f57d2f8fb6874f259443/thumbnail.jpg";
+    const savedScriptsUrl = localStorage.getItem("defaultSrcScriptsUrl") || "https://scripts.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6845f57d2f8fb6874f259443/player.js";
+
+    setDefaultDivId(savedDivId);
+    setDefaultThumbId(savedThumbId);
+    setDefaultSrcImagesUrl(savedImagesUrl);
+    setDefaultSrcScriptsUrl(savedScriptsUrl);
+
+    // Save defaults if not present
+    if (!localStorage.getItem("defaultDivId")) localStorage.setItem("defaultDivId", savedDivId);
+    if (!localStorage.getItem("defaultThumbId")) localStorage.setItem("defaultThumbId", savedThumbId);
+    if (!localStorage.getItem("defaultSrcImagesUrl")) localStorage.setItem("defaultSrcImagesUrl", savedImagesUrl);
+    if (!localStorage.getItem("defaultSrcScriptsUrl")) localStorage.setItem("defaultSrcScriptsUrl", savedScriptsUrl);
   }, [])
+
+  // Salvar valor padrão no localStorage
+  const handleSetDefaultValue = (key: string, value: string) => {
+      if(!value) {
+        toast({
+            title: "Valor inválido",
+            description: "O campo não pode estar vazio.",
+            variant: "destructive"
+        })
+        return;
+      }
+
+      localStorage.setItem(key, value);
+      
+      switch(key) {
+          case "defaultDivId":
+              setDefaultDivId(value);
+              break;
+          case "defaultThumbId":
+              setDefaultThumbId(value);
+              break;
+          case "defaultSrcImagesUrl":
+              setDefaultSrcImagesUrl(value);
+              break;
+          case "defaultSrcScriptsUrl":
+              setDefaultSrcScriptsUrl(value);
+              break;
+      }
+
+      toast({
+          description: (
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <span className="font-semibold">Valor padrão salvo com sucesso!</span>
+            </div>
+          ),
+          variant: "success",
+      });
+  }
 
   // Controlar abertura/fechamento do overlay de data personalizada
   useEffect(() => {
@@ -298,33 +358,6 @@ export default function AdminPanel() {
     })
   }, [meetings, statusFilter, dateFilter, customDateRange?.from, customDateRange?.to, searchQuery])
 
-  // Salvar URL padrão no localStorage quando mudar
-  const saveDefaultUrl = () => {
-    const currentSavedUrl = localStorage.getItem("defaultVideoUrl");
-    if (defaultVideoUrl === currentSavedUrl) {
-      toast({
-        description: (
-          <React.Fragment>
-            <div className="flex items-center text-lg font-semibold mb-1">
-              <span className="p-1 rounded-md border bg-blue-100 border-blue-400 text-blue-500 mr-2 inline-flex items-center justify-center">
-                <Info className="h-5 w-5" />
-              </span>
-              URL Inalterada
-            </div>
-            A URL inserida já é a sua URL padrão.
-          </React.Fragment>
-        ),
-        variant: "default",
-      });
-      setIsDefaultUrlDialogOpen(false);
-      return;
-    }
-
-    localStorage.setItem("defaultVideoUrl", defaultVideoUrl);
-    setIsDefaultUrlDialogOpen(false);
-    setIsUrlSaveConfirmDialogOpen(true);
-  };
-
   // Função para selecionar/desselecionar todas as reuniões visíveis
   const toggleSelectAll = useCallback(() => {
     if (selectedMeetings.length === filteredMeetings.length && filteredMeetings.length > 0) {
@@ -369,7 +402,7 @@ export default function AdminPanel() {
         successMessage = "Reuniões selecionadas excluídas com sucesso."
         errorMessage = "Erro ao excluir reuniões selecionadas."
       } else {
-        const newLocalStatus = bulkActionType === "activate" ? "Ativado" : "Finalizado"
+        const newLocalStatus = bulkActionType === "activate" ? "Ativado" : "Encerrado"
         const supabasePersistStatus = statusTranslations[newLocalStatus as keyof typeof statusTranslations] || newLocalStatus
         
         const { error } = await supabase
@@ -380,8 +413,8 @@ export default function AdminPanel() {
         setMeetings(
           meetings.map((m) => (selectedMeetings.includes(m.meeting_id) ? { ...m, status: newLocalStatus } : m)),
         )
-        successMessage = `Reuniões selecionadas ${newLocalStatus === "Ativado" ? "ativadas" : "finalizadas"} com sucesso.`
-        errorMessage = `Erro ao ${newLocalStatus === "Ativado" ? "ativar" : "finalizar"} reuniões selecionadas.`
+        successMessage = `Reuniões selecionadas ${newLocalStatus === "Ativado" ? "ativadas" : "encerradas"} com sucesso.`
+        errorMessage = `Erro ao ${newLocalStatus === "Ativado" ? "ativar" : "encerrar"} reuniões selecionadas.`
       }
       toast({
         description: (
@@ -421,10 +454,7 @@ export default function AdminPanel() {
     setBulkActionType(null)
   }
 
-  const createMeeting = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    const videoUrl = newMeetingVideoUrl.trim() || defaultVideoUrl
+  const createMeeting = async () => {
     const meetingId = generateMeetingId()
     const supabase = getSupabaseBrowser()
 
@@ -438,7 +468,10 @@ export default function AdminPanel() {
       .insert({
         meeting_id: meetingId,
         status: "active",
-        video_url: videoUrl,
+        div_id: defaultDivId,
+        thumb_id: defaultThumbId,
+        src_images_url: defaultSrcImagesUrl,
+        src_scripts_url: defaultSrcScriptsUrl,
       })
       .select()
 
@@ -450,7 +483,6 @@ export default function AdminPanel() {
         status: "Ativado" 
       }
       setMeetings([newMeetingForState, ...meetings])
-      setNewMeetingVideoUrl("")
 
       setNewMeetingData(newMeetingForState)
       setIsNewMeetingDialogOpen(true)
@@ -507,30 +539,30 @@ export default function AdminPanel() {
       console.warn("Cliente Supabase não inicializado")
       return
     }
-    // Atualiza para "ended" no Supabase, mas "Finalizado" localmente
+    // Atualiza para "ended" no Supabase, mas "Encerrado" localmente
     const { error } = await supabase.from("meetings").update({ status: "ended" }).eq("meeting_id", meetingId)
 
     if (!error) {
       setMeetings(
-        meetings.map((meeting) => (meeting.meeting_id === meetingId ? { ...meeting, status: "Finalizado" } : meeting)),
+        meetings.map((meeting) => (meeting.meeting_id === meetingId ? { ...meeting, status: "Encerrado" } : meeting)),
       )
       
       toast({
         description: (
           <React.Fragment>
             <div className="flex items-center text-lg font-semibold mb-1">
-              <span className="p-1 rounded-md border bg-amber-100 border-amber-400 text-amber-600 mr-2 inline-flex items-center justify-center">
+              <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-600 mr-2 inline-flex items-center justify-center">
                 <PowerOff className="h-5 w-5" />
               </span>
-              Reunião Finalizada
+              Reunião Encerrada
             </div>
-            {`A reunião ${meetingId} foi finalizada com sucesso.`}
+            {`A reunião ${meetingId} foi encerrada com sucesso.`}
           </React.Fragment>
         ),
-        variant: "warning",
+        variant: "destructive",
       });
     } else {
-      console.error("Erro ao finalizar reunião:", error)
+      console.error("Erro ao encerrar reunião:", error)
       toast({
         description: (
           <React.Fragment>
@@ -538,9 +570,9 @@ export default function AdminPanel() {
               <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-500 mr-2 inline-flex items-center justify-center">
                 <AlertTriangle className="h-5 w-5" />
               </span>
-              Erro ao Finalizar Reunião
+              Erro ao Encerrar Reunião
             </div>
-            Ocorreu um erro ao finalizar a reunião. Tente novamente.
+            Ocorreu um erro ao encerrar a reunião. Tente novamente.
           </React.Fragment>
         ),
         variant: "destructive",
@@ -616,7 +648,7 @@ export default function AdminPanel() {
           <React.Fragment>
             <div className="flex items-center text-lg font-semibold mb-1">
               <span className="p-1 rounded-md border bg-green-100 border-green-400 text-green-500 mr-2 inline-flex items-center justify-center">
-                <Check className="h-5 w-5" />
+                <Power className="h-5 w-5" />
               </span>
               Reunião Ativada
             </div>
@@ -658,8 +690,8 @@ export default function AdminPanel() {
       const { error } = await supabase.from("meetings").delete().eq("status", "ended")
 
       if (!error) {
-        // Filtra localmente usando "Finalizado"
-        setMeetings(meetings.filter((meeting) => meeting.status !== "Finalizado"))
+        // Filtra localmente usando "Encerrado"
+        setMeetings(meetings.filter((meeting) => meeting.status !== "Encerrado"))
         
         toast({
           description: (
@@ -668,15 +700,15 @@ export default function AdminPanel() {
                 <span className="p-1 rounded-md border bg-green-100 border-green-400 text-green-500 mr-2 inline-flex items-center justify-center">
                   <Check className="h-5 w-5" />
                 </span>
-                Reuniões finalizadas excluídas
+                Reuniões encerradas excluídas
               </div>
-              Todas as reuniões finalizadas foram excluídas com sucesso.
+              Todas as reuniões com status "Encerrado" foram excluídas com sucesso.
             </React.Fragment>
           ),
           variant: "success",
         });
       } else {
-        console.error("Erro ao excluir reuniões finalizadas:", error)
+        console.error("Erro ao excluir reuniões encerradas:", error)
         toast({
           description: (
             <React.Fragment>
@@ -686,7 +718,7 @@ export default function AdminPanel() {
                 </span>
                 Erro ao excluir reuniões
               </div>
-              Ocorreu um erro ao excluir as reuniões finalizadas. Tente novamente.
+              Ocorreu um erro ao excluir as reuniões com status "Encerrado". Tente novamente.
             </React.Fragment>
           ),
           variant: "destructive",
@@ -715,107 +747,146 @@ export default function AdminPanel() {
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
       <Toaster />
       <header className="mb-6 md:mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-sky-700">Painel de Administração de Reuniões</h1>
-            <p className="text-gray-600 mt-1">Gerencie suas reuniões de forma eficiente.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleAutoRefresh}
-                    className={cn(
-                      "flex items-center gap-2 transition-all duration-200",
-                      autoRefreshEnabled 
-                        ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100" 
-                        : "bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100"
-                    )}
-                  >
-                    <RefreshCw 
-                      className={cn(
-                        "h-4 w-4",
-                        autoRefreshEnabled && "animate-spin"
-                      )} 
-                    />
-                    <span className="hidden sm:inline">
-                      {autoRefreshEnabled ? "Auto-refresh Ativo" : "Auto-refresh Pausado"}
-                    </span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    {autoRefreshEnabled 
-                      ? "Clique para pausar o refresh automático" 
-                      : "Clique para ativar o refresh automático"}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshNow}
-              className="flex items-center gap-2 bg-sky-50 border-sky-300 text-sky-700 hover:bg-sky-100"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Atualizar Agora</span>
-            </Button>
-          </div>
-        </div>
+        <h1 className="text-3xl md:text-4xl font-bold text-sky-700">Painel de Administração de Reuniões</h1>
+        <p className="text-gray-600 mt-1">Gerencie suas reuniões de forma eficiente.</p>
       </header>
 
-      {/* Seção de Criação de Nova Reunião e Configuração de URL Padrão */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 md:mb-8 p-6 bg-sky-100 border border-sky-500 rounded-lg shadow-md">
-        <div className="md:pr-3 md:border-r md:border-sky-300">
-          <h2 className="text-xl font-semibold text-sky-700 mb-3">Criar Nova Reunião</h2>
-          <form onSubmit={createMeeting} className="space-y-4">
-            <div>
-              <Label htmlFor="video-url" className="text-sky-700">
-                URL do Vídeo <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-yellow-300 text-yellow-800 border border-yellow-500 rounded-full">Opcional</span>
-              </Label>
-              <Input
-                id="video-url"
-                type="text"
-                value={newMeetingVideoUrl}
-                onChange={(e) => setNewMeetingVideoUrl(e.target.value)}
-                placeholder={`Padrão: ${defaultVideoUrl}`}
-                className="mt-4 border-sky-400 focus:border-sky-600 focus:ring-sky-600 bg-white"
-              />
+      {/* Ações principais e Configurações */}
+      <div className="mb-6 flex flex-col gap-4">
+        <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-sky-100 border border-sky-500 rounded-lg shadow-md">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <Button onClick={createMeeting} className="bg-sky-500 hover:bg-sky-600 text-white border border-sky-700">
+                      <PlusCircle className="mr-2 h-5 w-5" /> Criar Reunião
+                    </Button>
+                    <div className="flex items-center gap-3">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={toggleAutoRefresh}
+                                className={cn(
+                                  "flex items-center gap-2 transition-all duration-200",
+                                  autoRefreshEnabled
+                                    ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                                    : "bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100",
+                                )}
+                              >
+                                <RefreshCw
+                                  className={cn("h-4 w-4", autoRefreshEnabled && "animate-spin")}
+                                />
+                                <span className="sm:inline">
+                                  {autoRefreshEnabled ? "Auto-Refresh Ativo" : "Pausado"}
+                                </span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                {autoRefreshEnabled
+                                  ? "Pausar atualização automática"
+                                  : "Ativar atualização automática"}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={refreshNow}
+                          className="flex items-center gap-2 bg-sky-50 border-sky-300 text-sky-700 hover:bg-sky-100"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          <span className="sm:inline">Atualizar Agora</span>
+                        </Button>
+                    </div>
+                </div>
+                <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="flex items-center justify-center gap-2 text-sky-700 hover:bg-sky-200 border-2 border-sky-200 hover:border-sky-300 md:border-0 p-2.5 md:p-2 rounded-lg">
+                        <Settings className={cn("h-5 w-5 transition-transform duration-300", isSettingsOpen && "rotate-90")} />
+                        <span>Mudar script do vídeo</span>
+                    </Button>
+                </CollapsibleTrigger>
             </div>
-            <Button type="submit" className="w-full md:w-auto bg-sky-500 hover:bg-sky-600 text-white border border-sky-700">
-              <PlusCircle className="mr-2 h-5 w-5" /> Criar Reunião
-            </Button>
-          </form>
-        </div>
-        <div className="md:pl-3">
-          <h2 className="text-xl font-semibold text-sky-700 mb-3">URL de Vídeo Padrão</h2>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="default-video-url" className="text-sky-700">
-                Link do vídeo 
-                <span className="ml-2 px-2 py-0.5 text-xs font-normal bg-gray-200 text-gray-700 border border-gray-400 rounded-full">
-                  <span className="hidden sm:inline">Padrão para todas as reuniões</span>
-                  <span className="sm:hidden">URL Padrão da Reunião</span>
-                </span>
-              </Label>
-              <Input
-                id="default-video-url"
-                type="text"
-                value={defaultVideoUrl}
-                onChange={(e) => setDefaultVideoUrl(e.target.value)}
-                placeholder="Insira a URL padrão do vídeo"
-                className="mt-4 border-sky-400 focus:border-sky-600 focus:ring-sky-600 bg-white"
-              />
-            </div>
-            <Button onClick={saveDefaultUrl} className="w-full md:w-auto bg-teal-500 hover:bg-teal-600 text-white border border-teal-700">
-              <Link className="mr-2 h-5 w-5" /> Salvar URL Padrão
-            </Button>
-          </div>
-        </div>
+            <CollapsibleContent className="mt-2">
+                <div className="p-4 bg-sky-50 border border-sky-300 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-sky-800 mb-3">Configurar Vídeo Padrão</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Div ID */}
+                      <div>
+                        <Label htmlFor="default-div-id" className="text-sky-700">Div ID Padrão</Label>
+                        <Input
+                          id="default-div-id"
+                          type="text"
+                          defaultValue={defaultDivId}
+                          onBlur={(e) => handleSetDefaultValue("defaultDivId", e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { handleSetDefaultValue("defaultDivId", e.currentTarget.value) }}}
+                          placeholder="vid_..."
+                          className="mt-1 border-sky-400 focus:border-sky-600 focus:ring-sky-600 bg-white"
+                        />
+                        <p className="text-xs text-gray-600 mt-1">
+                          Exemplo: `&lt;div id="<strong className="text-sky-700">vid_6845f57d2f8fb6874f259443</strong>"&gt;`
+                        </p>
+                      </div>
+
+                      {/* Thumb ID */}
+                      <div>
+                        <Label htmlFor="default-thumb-id" className="text-sky-700">Thumbnail ID Padrão</Label>
+                        <Input
+                          id="default-thumb-id"
+                          type="text"
+                          defaultValue={defaultThumbId}
+                          onBlur={(e) => handleSetDefaultValue("defaultThumbId", e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { handleSetDefaultValue("defaultThumbId", e.currentTarget.value) }}}
+                          placeholder="thumb_..."
+                          className="mt-1 border-sky-400 focus:border-sky-600 focus:ring-sky-600 bg-white"
+                        />
+                        <p className="text-xs text-gray-600 mt-1">
+                          Exemplo: `&lt;img id="<strong className="text-sky-700">thumb_6845f57d2f8fb6874f259443</strong>" src="..."&gt;`
+                        </p>
+                      </div>
+                      
+                      {/* Image URL */}
+                      <div className="md:col-span-2">
+                        <Label htmlFor="default-image-url" className="text-sky-700">URL da Imagem de Thumbnail Padrão</Label>
+                        <Input
+                          id="default-image-url"
+                          type="text"
+                          defaultValue={defaultSrcImagesUrl}
+                          onBlur={(e) => handleSetDefaultValue("defaultSrcImagesUrl", e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { handleSetDefaultValue("defaultSrcImagesUrl", e.currentTarget.value) }}}
+                          placeholder="https://images.converteai.net/..."
+                          className="mt-1 border-sky-400 focus:border-sky-600 focus:ring-sky-600 bg-white"
+                        />
+                        <p className="text-xs text-gray-600 mt-1">
+                          Exemplo: `&lt;img ... src="<strong className="text-sky-700">https://images.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6845f57d2f8fb6874f259443/thumbnail.jpg</strong>"&gt;`
+                        </p>
+                      </div>
+                      
+                      {/* Script URL */}
+                      <div className="md:col-span-2">
+                        <Label htmlFor="default-script-url" className="text-sky-700">URL do Script do Player Padrão</Label>
+                        <Input
+                          id="default-script-url"
+                          type="text"
+                          defaultValue={defaultSrcScriptsUrl}
+                          onBlur={(e) => handleSetDefaultValue("defaultSrcScriptsUrl", e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { handleSetDefaultValue("defaultSrcScriptsUrl", e.currentTarget.value) }}}
+                          placeholder="https://scripts.converteai.net/..."
+                          className="mt-1 border-sky-400 focus:border-sky-600 focus:ring-sky-600 bg-white"
+                        />
+                        <p className="text-xs text-gray-600 mt-1">
+                          Exemplo: `&lt;script ... src="<strong className="text-sky-700">https://scripts.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6845f57d2f8fb6874f259443/player.js</strong>"&gt;&lt;/script&gt;`
+                        </p>
+                      </div>
+                    </div>
+                </div>
+            </CollapsibleContent>
+        </Collapsible>
+        <p className="text-xs text-gray-500 -mt-2">
+          Nota: A atualização automática pode não funcionar corretamente em alguns casos e pode ser necessário atualizar manualmente.
+        </p>
       </div>
 
       {/* Filtros e Ações em Massa */}
@@ -844,8 +915,24 @@ export default function AdminPanel() {
               </SelectTrigger>
               <SelectContent className="bg-white border-sky-500 text-sky-800">
                 <SelectItem value="all" className="hover:bg-sky-200">Todos</SelectItem>
-                <SelectItem value="Ativado" className="hover:bg-sky-200">Ativado</SelectItem>
-                <SelectItem value="Finalizado" className="hover:bg-sky-200">Finalizado</SelectItem>
+                <SelectItem value="Ativado" className="hover:bg-sky-200 flex items-center">
+                  <div className="flex items-center gap-2">
+                    <Power className="h-3 w-3 text-green-600" />
+                    Ativado
+                  </div>
+                </SelectItem>
+                <SelectItem value="Assistindo" className="hover:bg-sky-200 flex items-center">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-3 w-3 text-amber-600" />
+                    Assistindo
+                  </div>
+                </SelectItem>
+                <SelectItem value="Encerrado" className="hover:bg-sky-200 flex items-center">
+                  <div className="flex items-center gap-2">
+                    <PowerOff className="h-3 w-3 text-red-600" />
+                    Encerrado
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -998,18 +1085,18 @@ export default function AdminPanel() {
             )}
           </div>
 
-          {/* Botão para Excluir Reuniões Finalizadas */} 
+          {/* Botão para Excluir Reuniões Encerradas */} 
           <div className="mt-auto"> {/* Alterado para alinhar o botão na parte inferior */} 
-            {meetings.some((m) => m.status === "Finalizado") && (
+            {meetings.some((m) => m.status === "Encerrado") && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="outline"
                       className="w-full bg-red-100 text-red-700 border-red-400 hover:bg-red-200 hover:border-red-500 hover:text-red-700"
                       disabled={isDeleting}
-                      title="Excluir todas as reuniões com status Finalizado"
+                      title="Excluir todas as reuniões com status Encerrado"
                     >
-                      <Trash2 className="mr-2 h-4" /> Excluir Reuniões Finalizadas
+                      <Trash2 className="mr-2 h-4" /> Excluir Reuniões Encerradas
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent className="bg-white border-red-500">
@@ -1018,10 +1105,10 @@ export default function AdminPanel() {
                         <span className="mr-2 p-1.5 bg-red-100 border border-red-300 rounded-md">
                             <AlertTriangle className="h-5 w-5 text-red-600" />
                         </span>
-                        Excluir Reuniões Finalizadas
+                        Excluir Reuniões Encerradas
                       </AlertDialogTitle>
                       <AlertDialogDescription className="text-gray-600 pt-2">
-                        Tem certeza que deseja excluir <strong>TODAS</strong> as reuniões com status <strong>"Finalizado"</strong>?
+                        Tem certeza que deseja excluir <strong>TODAS</strong> as reuniões com status <strong>"Encerrado"</strong>?
                         <br />Esta ação <strong>NÃO</strong> pode ser desfeita.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -1069,13 +1156,13 @@ export default function AdminPanel() {
               </Button>
               <Button
                 onClick={() => openBulkActionDialog("end")}
-                className="bg-orange-200 hover:bg-orange-300 text-orange-800 border border-orange-600 w-full sm:w-auto"
+                className="bg-red-200 hover:bg-red-300 text-red-800 border border-red-600 w-full sm:w-auto"
               >
                 <PowerOff className="mr-2 h-5 w-5" /> Encerrar Selecionadas
               </Button>
               <Button
                 onClick={() => openBulkActionDialog("delete")}
-                className="bg-red-200 hover:bg-red-300 text-red-800 border border-red-600 w-full sm:w-auto"
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-600 w-full sm:w-auto"
               >
                 <Trash2 className="mr-2 h-5 w-5" /> Excluir Selecionadas
               </Button>
@@ -1135,8 +1222,10 @@ export default function AdminPanel() {
                   key={meeting.id} 
                   className={cn(
                     "border-b-sky-200 hover:bg-sky-50",
-                    // Cores de fundo baseadas no status para todos os dispositivos
-                    meeting.status === "Ativado" ? "bg-green-50" : "bg-amber-50 opacity-90"
+                    // Cores de fundo baseadas no status
+                    meeting.status === "Ativado" ? "bg-green-50" :
+                    meeting.status === "Assistindo" ? "bg-amber-50 opacity-90" :
+                    meeting.status === "Encerrado" ? "bg-red-50 opacity-90" : ""
                   )}
                 >
                   <TableCell className="text-center px-1 py-2 sm:px-2">
@@ -1149,14 +1238,16 @@ export default function AdminPanel() {
                   </TableCell>
                   <TableCell className="font-medium text-sky-700 px-2 py-2 sm:px-4">
                     <div className="flex items-center">
-                      <div className="sm:hidden mr-2"> {/* Visível apenas em telas pequenas, com margem à direita */}
+                      <div className="sm:hidden mr-2">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               {meeting.status === "Ativado" ? (
-                                <div className="w-1 h-3 rounded-sm bg-green-500" /> // Alterado de círculo para linha vertical
+                                <div className="w-1 h-3 rounded-sm bg-green-500" />
+                              ) : meeting.status === "Assistindo" ? (
+                                <div className="w-1 h-3 rounded-sm bg-amber-500" />
                               ) : (
-                                <div className="w-1 h-3 rounded-sm bg-amber-500" />   // Alterado de círculo para linha vertical
+                                <div className="w-1 h-3 rounded-sm bg-red-500" />
                               )}
                             </TooltipTrigger>
                             <TooltipContent className="bg-gray-800 text-white border-gray-900">
@@ -1181,12 +1272,21 @@ export default function AdminPanel() {
                   <TableCell className="hidden sm:table-cell px-2 py-2 sm:px-4">
                     <div className="flex items-center justify-start">
                       <span
-                        className={`px-3 py-1 text-xs font-semibold rounded-full border sm:min-w-[80px] sm:text-center ${ 
+                        className={`px-3 py-1 text-xs font-semibold rounded-full border sm:min-w-[100px] sm:text-center flex items-center justify-center gap-1 ${ 
                           meeting.status === "Ativado"
                             ? "bg-green-100 text-green-700 border-green-500"
-                            : "bg-amber-100 text-amber-700 border-amber-500"
+                            : meeting.status === "Assistindo"
+                            ? "bg-amber-100 text-amber-700 border-amber-500"
+                            : "bg-red-100 text-red-700 border-red-500"
                         }`}
                       >
+                        {meeting.status === "Ativado" ? (
+                          <Power className="h-3 w-3" />
+                        ) : meeting.status === "Assistindo" ? (
+                          <Eye className="h-3 w-3" />
+                        ) : (
+                          <PowerOff className="h-3 w-3" />
+                        )}
                         {meeting.status}
                       </span>
                     </div>
@@ -1208,22 +1308,22 @@ export default function AdminPanel() {
                       {meeting.status === "Ativado" ? (
                         <Button
                           variant="outline"
-                          className="h-9 w-9 p-0 flex items-center justify-center text-orange-600 border-orange-500 hover:bg-orange-100 hover:text-orange-700 sm:w-28 sm:px-3"
+                          className="h-9 w-9 p-0 flex items-center justify-center text-red-600 border-red-500 hover:bg-red-100 hover:text-red-700 sm:w-32 sm:px-3"
                           onClick={() => endMeeting(meeting.meeting_id)}
-                          title="Finalizar Reunião"
+                          title="Encerrar Reunião"
                         >
                           <PowerOff className="h-4 w-4" />
-                          <span className="hidden sm:ml-2 sm:inline">Finalizar</span>
+                          <span className="hidden sm:ml-1 sm:inline">Encerrar</span>
                         </Button>
                       ) : (
                          <Button
                           variant="outline"
-                          className="h-9 w-9 p-0 flex items-center justify-center text-green-600 border-green-500 hover:bg-green-100 hover:text-green-700 sm:w-28 sm:px-3"
+                          className="h-9 w-9 p-0 flex items-center justify-center text-green-600 border-green-500 hover:bg-green-100 hover:text-green-700 sm:w-32 sm:px-3"
                           onClick={() => activateMeeting(meeting.meeting_id)}
                           title="Ativar Reunião"
                         >
                           <Power className="h-4 w-4" />
-                          <span className="hidden sm:ml-2 sm:inline">Ativar</span>
+                          <span className="hidden sm:ml-1 sm:inline">Ativar</span>
                         </Button>
                       )}
                       <AlertDialog>
@@ -1273,26 +1373,26 @@ export default function AdminPanel() {
 
       {/* Diálogo para Ações em Massa */}
       <AlertDialog open={isBulkActionDialogOpen} onOpenChange={setIsBulkActionDialogOpen}>
-        <AlertDialogContent className={`p-0 rounded-lg overflow-hidden ${ /* Adicionado rounded-lg e overflow-hidden */
-          bulkActionType === "delete" ? "border-red-500" : 
+        <AlertDialogContent className={`p-0 rounded-lg overflow-hidden ${
+          bulkActionType === "delete" ? "border-gray-500" : 
           bulkActionType === "activate" ? "border-green-500" : 
-          bulkActionType === "end" ? "border-orange-500" : "border-sky-500" 
+          bulkActionType === "end" ? "border-red-500" : "border-sky-500" 
         } ${ 
-          bulkActionType === "delete" ? "bg-red-50" :
+          bulkActionType === "delete" ? "bg-gray-50" :
           bulkActionType === "activate" ? "bg-green-50" :
-          bulkActionType === "end" ? "bg-orange-50" : "bg-sky-50"
+          bulkActionType === "end" ? "bg-red-50" : "bg-sky-50"
         }`}>
           <div className="p-6 pb-4">
             <AlertDialogHeader className={`pb-0 border-none`}>
               <AlertDialogTitle className={`flex items-center ${
                 bulkActionType === 'activate' ? 'text-green-800' :
-                bulkActionType === 'end' ? 'text-orange-800' :
-                bulkActionType === 'delete' ? 'text-red-800' : 'text-sky-700'
+                bulkActionType === 'end' ? 'text-red-800' :
+                bulkActionType === 'delete' ? 'text-gray-800' : 'text-sky-700'
               }`}>
                 <span className={`mr-2 p-1.5 rounded-md border ${ 
                   bulkActionType === 'activate' ? 'bg-green-100 border-green-300 text-green-700' :
-                  bulkActionType === 'end' ? 'bg-orange-100 border-orange-300 text-orange-700' :
-                  bulkActionType === 'delete' ? 'bg-red-100 border-red-300 text-red-700' : 'bg-sky-100 border-sky-300 text-sky-700'
+                  bulkActionType === 'end' ? 'bg-red-100 border-red-300 text-red-700' :
+                  bulkActionType === 'delete' ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-sky-100 border-sky-300 text-sky-700'
                 }`}>
                   {bulkActionType === 'activate' && <Power className="h-5 w-5" />}
                   {bulkActionType === 'end' && <PowerOff className="h-5 w-5" />}
@@ -1307,8 +1407,8 @@ export default function AdminPanel() {
               <AlertDialogDescription className="text-gray-700 pt-3">
                 Você selecionou <strong className={`${ 
                   bulkActionType === 'activate' ? 'text-green-700' :
-                  bulkActionType === 'end' ? 'text-orange-700' :
-                  bulkActionType === 'delete' ? 'text-red-700' : 'text-sky-700'
+                  bulkActionType === 'end' ? 'text-red-700' :
+                  bulkActionType === 'delete' ? 'text-gray-700' : 'text-sky-700'
                 }`}>{selectedMeetings.length}</strong> {selectedMeetings.length === 1 ? "reunião selecionada" : "reuniões selecionadas"}. 
                 {bulkActionType === "delete" 
                   ? " Esta ação não pode ser desfeita e excluirá permanentemente as reuniões selecionadas."
@@ -1316,16 +1416,16 @@ export default function AdminPanel() {
               </AlertDialogDescription>
             </AlertDialogHeader>
           </div>
-          <AlertDialogFooter className="px-6 py-4 bg-slate-50 border-t rounded-b-lg"> {/* Alterado para bg-slate-50 e adicionado rounded-b-lg */}
+          <AlertDialogFooter className="px-6 py-4 bg-slate-50 border-t rounded-b-lg">
             <AlertDialogCancel className="border-gray-400 text-gray-700 hover:bg-gray-100 flex items-center">
               <Ban className="mr-2 h-4 w-4" /> Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkAction}
-              className={`flex items-center ${ /* Adicionado flex items-center */
-                bulkActionType === "delete" ? "bg-red-200 hover:bg-red-300 text-red-800 border border-red-600" :
+              className={`flex items-center ${
+                bulkActionType === "delete" ? "bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-600" :
                 bulkActionType === "activate" ? "bg-green-200 hover:bg-green-300 text-green-800 border border-green-600" :
-                "bg-orange-200 hover:bg-orange-300 text-orange-800 border border-orange-600"
+                "bg-red-200 hover:bg-red-300 text-red-800 border border-red-600"
               }`}
             >
               {bulkActionType === 'activate' && <Power className="mr-2 h-4 w-4" />}
@@ -1408,9 +1508,9 @@ export default function AdminPanel() {
                 </div>
               </div>
                  <div className="grid gap-2">
-                <Label className="text-sky-700">URL do Vídeo</Label>
+                <Label className="text-sky-700">Div ID do Vídeo</Label>
                 <div className="flex items-center gap-2">
-                  <Input value={newMeetingData.video_url} readOnly className="bg-sky-50 border-sky-300"/>
+                  <Input value={newMeetingData.div_id || "Nenhum ID fornecido"} readOnly className="bg-sky-50 border-sky-300"/>
                 </div>
               </div>
             </div>
@@ -1432,31 +1532,6 @@ export default function AdminPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Diálogo de Confirmação de URL Padrão Salva */}
-      <Dialog open={isUrlSaveConfirmDialogOpen} onOpenChange={setIsUrlSaveConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-sky-50 border-sky-400 shadow-xl rounded-lg">
-          <DialogHeader className="items-center text-center pt-6 pb-4">
-            <div className="p-3 bg-sky-100 border-2 border-sky-500 rounded-lg mb-4 inline-flex">
-              <Check className="h-8 w-8 text-sky-600 stroke-[2.5]" />
-            </div>
-            <DialogTitle className="text-sky-700 text-2xl font-bold">URL Padrão Salva!</DialogTitle>
-          </DialogHeader>
-          <DialogDescription className="text-center text-sky-600 px-6 py-2 text-sm">
-            Sua nova URL de vídeo padrão foi configurada com sucesso e será utilizada para as próximas reuniões criadas.
-          </DialogDescription>
-          <DialogFooter className="sm:justify-center pt-2 pb-5">
-            <Button 
-              type="button" 
-              onClick={() => setIsUrlSaveConfirmDialogOpen(false)} 
-              className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-5 rounded-md shadow-md hover:shadow-lg transition-all duration-150 ease-in-out border border-sky-700"
-            >
-              Entendido!
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
     </div>
   )
 }

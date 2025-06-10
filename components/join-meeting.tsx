@@ -15,10 +15,9 @@ import PermissionNoticeModal from "@/components/permission-notice-modal"
 
 interface JoinMeetingProps {
   meetingId: string
-  videoUrl: string
 }
 
-export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
+export default function JoinMeeting({ meetingId }: JoinMeetingProps) {
   const [name, setName] = useState("")
   const [showPermissionModal, setShowPermissionModal] = useState(false)
   const [showNameError, setShowNameError] = useState(false)
@@ -62,7 +61,7 @@ export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
     const supabase = getSupabaseBrowser()
 
     // Redirect to the meeting room regardless of database operation
-    router.push(`/${meetingId}/room?name=${encodeURIComponent(name)}&videoUrl=${encodeURIComponent(videoUrl)}`)
+    router.push(`/${meetingId}/room?name=${encodeURIComponent(name)}`)
   }
 
   return (
@@ -149,7 +148,7 @@ export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
                         <Badge variant="outline" className="text-xs px-2 sm:px-3 py-1 bg-white border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer flex items-center space-x-1">
                           <MicOff className="h-3 w-3 sm:h-4 sm:w-4" />
                           <span className="hidden sm:inline">Permissão negada</span>
-                          <span className="sm:hidden">Mic negado</span>
+                          <span className="sm:hidden">Microfone desativado</span>
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="bg-gray-800 text-white text-xs px-2 py-1 rounded max-w-xs">
@@ -162,7 +161,7 @@ export default function JoinMeeting({ meetingId, videoUrl }: JoinMeetingProps) {
                         <Badge variant="outline" className="text-xs px-2 sm:px-3 py-1 bg-white border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer flex items-center space-x-1">
                           <VideoOff className="h-3 w-3 sm:h-4 sm:w-4" />
                           <span className="hidden sm:inline">Permissão negada</span>
-                          <span className="sm:hidden">Cam negada</span>
+                          <span className="sm:hidden">Câmera desativada</span>
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="bg-gray-800 text-white text-xs px-2 py-1 rounded max-w-xs">

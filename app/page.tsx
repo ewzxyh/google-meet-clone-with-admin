@@ -6,35 +6,11 @@ import { redirect } from "next/navigation"
 import { generateMeetingId } from "@/lib/utils"
 import { supabaseServer } from "@/lib/supabase"
 
-export default async function Home() {
-  async function createMeeting() {
-    "use server"
+export default function Home() {
+  const handleCreateMeeting = () => {
     const meetingId = generateMeetingId()
-
-    // Obter URL padrão do localStorage (não funciona no servidor, então usamos um valor padrão)
-    const defaultVideoUrl = "https://mhvzjal0ig61abwu.public.blob.vercel-storage.com/Amanda-QQLE8o1Zw9BaYtLwXmBoIBUToihnWY.mp4"
-
-    // If Supabase is available, create a meeting in the database
-    if (supabaseServer) {
-      try {
-        const { error } = await supabaseServer.from("meetings").insert({
-          meeting_id: meetingId,
-          status: "ativo", // Traduzido para português
-          video_url: defaultVideoUrl,
-        })
-
-        if (error) {
-          console.error("Erro ao criar reunião:", error)
-        }
-      } catch (error) {
-        console.error("Erro em createMeeting:", error)
-      }
-    } else {
-      console.warn("Cliente Supabase não inicializado. Prosseguindo sem operação de banco de dados.")
-    }
-
-    // Redirect to the meeting page regardless of database operation
-    redirect(`/${meetingId}`)
+    const defaultVideoUrl = ""
+    redirect(`/${meetingId}/room?videoUrl=${encodeURIComponent(defaultVideoUrl)}`)
   }
 
   return (

@@ -1,9 +1,12 @@
 "use client"
 
-import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react"
+import { useEffect, useRef, forwardRef, useImperativeHandle, useState, useMemo } from "react"
 
 interface VideoPlayerProps {
-  videoUrl: string
+  divId: string
+  thumbId: string
+  imageUrl: string
+  scriptUrl: string
   initialPosition: number
   onVideoEnd: () => void
   volume?: number
@@ -17,7 +20,10 @@ export interface VideoPlayerRef {
 }
 
 const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ 
-  videoUrl, 
+  divId,
+  thumbId,
+  imageUrl,
+  scriptUrl,
   initialPosition, 
   onVideoEnd, 
   volume = 1,
@@ -29,6 +35,25 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [hasStarted, setHasStarted] = useState(false)
   const meetingEndTimerIdRef = useRef<number | null>(null)
 
+  const { playerId, scriptId } = useMemo(() => {
+    if (!divId) {
+      return { playerId: null, scriptId: null };
+    }
+    try {
+      // Ex: divId "vid_xxxxxxxx" extrai "xxxxxxxx"
+      const id = divId.replace('vid_', '');
+      if (!id) throw new Error("Player ID não pôde ser extraído do divId");
+      
+      return {
+        playerId: id,
+        scriptId: `scr_${id}`,
+      };
+    } catch (e) {
+      console.error("Erro ao extrair Player ID do divId:", divId, e);
+      return { playerId: null, scriptId: null };
+    }
+  }, [divId]);
+
   // Usar ConvertAI player para todos os dispositivos
   const useConvertAI = true
 
@@ -37,7 +62,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     console.log('startVideo chamado, useConvertAI:', useConvertAI)
     
     if (useConvertAI) {
-      const playerContainer = document.querySelector('#vid_6845f57d2f8fb6874f259443')
+      const playerContainer = document.querySelector(`#${divId}`)
       const video = playerContainer?.querySelector('video') as HTMLVideoElement
       const smartPlayerContent = playerContainer?.querySelector('.smartplayer-content') as HTMLElement
 
@@ -85,7 +110,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       } else {
         // Fallback: tentar via ConvertAI API se o elemento video não for encontrado imediatamente
         if ((window as any).smartplayer && (window as any).smartplayer.instances) {
-          const instance = (window as any).smartplayer.instances['6845f57d2f8fb6874f259443']
+          const instance = (window as any).smartplayer.instances[playerId!]
           if (instance && instance.play) {
             instance.play()
             console.log('ConvertAI: Vídeo iniciado via ConvertAI API (startVideo)')
@@ -117,7 +142,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       
       if (useConvertAI) {
         // Para ConvertAI player
-        const player = document.querySelector('#vid_6845f57d2f8fb6874f259443')
+        const player = document.querySelector(`#${divId}`)
         const video = player?.querySelector('video') as HTMLVideoElement
         if (video) {
           video.volume = clampedVolume
@@ -134,7 +159,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         
         // Tentar também via API do ConvertAI se disponível
         if ((window as any).smartplayer && (window as any).smartplayer.instances) {
-          const instance = (window as any).smartplayer.instances['6845f57d2f8fb6874f259443']
+          const instance = (window as any).smartplayer.instances[playerId!]
           if (instance && instance.setVolume) {
             instance.setVolume(clampedVolume)
             console.log(`Volume ConvertAI (API) ajustado para: ${Math.round(clampedVolume * 100)}%`)
@@ -157,22 +182,22 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     getVolume: () => currentVolume
   }))
 
-  // Timer automático de 10 minutos e 30 segundos
+  // Timer automático de 10 minutos
   useEffect(() => {
-    // Configurar timer automático de 10min 30s IMEDIATAMENTE
+    // Configurar timer automático de 10min IMEDIATAMENTE
     if (!meetingEndTimerIdRef.current) {
-      console.log('Configurando timer de encerramento automático de 10 minutos e 30 segundos (INICIANDO AGORA).');
+      console.log('Configurando timer de encerramento automático de 10 minutos (INICIANDO AGORA).');
       meetingEndTimerIdRef.current = window.setTimeout(() => {
-        console.log('Timer de encerramento automático (10min 30s) expirou. Chamando onVideoEnd.');
+        console.log('Timer de encerramento automático (10min) expirou. Chamando onVideoEnd.');
         onVideoEnd();
         meetingEndTimerIdRef.current = null;
-      }, 630000); // 10 minutos e 30 segundos = 630000 ms
+      }, 600000); // 10 minutos = 600000 ms
     }
 
     return () => {
       if (meetingEndTimerIdRef.current) {
         clearTimeout(meetingEndTimerIdRef.current);
-        console.log('Timer de encerramento automático (10min 30s) limpo no cleanup.');
+        console.log('Timer de encerramento automático (10min) limpo no cleanup.');
         meetingEndTimerIdRef.current = null;
       }
     };
@@ -180,7 +205,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
   // Carregar script do ConvertAI e aplicar CSS
   useEffect(() => {
-    if (!useConvertAI) {
+    if (!useConvertAI || !playerId || !divId || !scriptId || !scriptUrl) {
       return;
     }
 
@@ -197,18 +222,18 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       styleSheet.id = 'converteai-custom-style';
       styleSheet.textContent = `
         /* Permitir que o container e elementos essenciais funcionem */
-        #vid_6845f57d2f8fb6874f259443 { 
+        #${divId} { 
           pointer-events: auto !important;
           position: relative !important;
         }
         
         /* Garantir que o botão de play seja visível e clicável */
-        #vid_6845f57d2f8fb6874f259443 .smartplayer-play-button, 
-        #vid_6845f57d2f8fb6874f259443 .vjs-big-play-button,
-        #vid_6845f57d2f8fb6874f259443 .smartplayer-poster,
-        #vid_6845f57d2f8fb6874f259443 .smartplayer-thumbnail,
-        #vid_6845f57d2f8fb6874f259443 .smartplayer-content,
-        #vid_6845f57d2f8fb6874f259443 video { 
+        #${divId} .smartplayer-play-button, 
+        #${divId} .vjs-big-play-button,
+        #${divId} .smartplayer-poster,
+        #${divId} .smartplayer-thumbnail,
+        #${divId} .smartplayer-content,
+        #${divId} video { 
           pointer-events: auto !important; 
           z-index: 10 !important;
           display: block !important;
@@ -217,28 +242,28 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         }
         
         /* Ocultar apenas controles desnecessários APÓS o vídeo iniciar */
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-controls-bar,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-progress-bar,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-time,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-duration,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-progress,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-controller-mask,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-fake-bar,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-control-bar,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-controller,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-icons,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-icons-left,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-icons-right,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-icon,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-info-panel,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-menu,
-        #vid_6845f57d2f8fb6874f259443.playing .smartplayer-notice,
-        #vid_6845f57d2f8fb6874f259443.playing .vjs-progress-control,
-        #vid_6845f57d2f8fb6874f259443.playing .vjs-time-control,
-        #vid_6845f57d2f8fb6874f259443.playing .vjs-current-time,
-        #vid_6845f57d2f8fb6874f259443.playing .vjs-duration,
-        #vid_6845f57d2f8fb6874f259443.playing .vjs-remaining-time,
-        #vid_6845f57d2f8fb6874f259443.playing .vjs-control-bar { 
+        #${divId}.playing .smartplayer-controls-bar,
+        #${divId}.playing .smartplayer-progress-bar,
+        #${divId}.playing .smartplayer-time,
+        #${divId}.playing .smartplayer-duration,
+        #${divId}.playing .smartplayer-progress,
+        #${divId}.playing .smartplayer-controller-mask,
+        #${divId}.playing .smartplayer-fake-bar,
+        #${divId}.playing .smartplayer-control-bar,
+        #${divId}.playing .smartplayer-controller,
+        #${divId}.playing .smartplayer-icons,
+        #${divId}.playing .smartplayer-icons-left,
+        #${divId}.playing .smartplayer-icons-right,
+        #${divId}.playing .smartplayer-icon,
+        #${divId}.playing .smartplayer-info-panel,
+        #${divId}.playing .smartplayer-menu,
+        #${divId}.playing .smartplayer-notice,
+        #${divId}.playing .vjs-progress-control,
+        #${divId}.playing .vjs-time-control,
+        #${divId}.playing .vjs-current-time,
+        #${divId}.playing .vjs-duration,
+        #${divId}.playing .vjs-remaining-time,
+        #${divId}.playing .vjs-control-bar { 
           display: none !important; 
           visibility: hidden !important; 
           opacity: 0 !important; 
@@ -246,7 +271,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         }
         
         /* Sempre ocultar elementos de resume */
-        #vid_6845f57d2f8fb6874f259443 .smartplayer-resume, 
+        #${divId} .smartplayer-resume, 
         .smartplayer-resume { 
           display: none !important; 
           visibility: hidden !important; 
@@ -263,7 +288,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     };
 
     // Verificar se script já existe
-    const existingScript = document.getElementById('scr_6845f57d2f8fb6874f259443');
+    const existingScript = document.getElementById(scriptId);
     
     if (existingScript) {
       console.log('ConvertAI: Script ConvertAI já existe.');
@@ -278,8 +303,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
     // Carregar script
     const script = document.createElement('script');
-    script.id = 'scr_6845f57d2f8fb6874f259443';
-    script.src = 'https://scripts.converteai.net/6f5c1302-f45d-4916-b23f-05255a58f896/players/6845f57d2f8fb6874f259443/player.js';
+    script.id = scriptId;
+    script.src = scriptUrl;
     script.async = true;
 
     script.onload = () => {
@@ -288,7 +313,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       
       // Aguardar um pouco para o player ser inicializado e adicionar listeners
       setTimeout(() => {
-        const playerElement = document.querySelector('#vid_6845f57d2f8fb6874f259443');
+        const playerElement = document.querySelector(`#${divId}`);
         const videoElement = playerElement?.querySelector('video') as HTMLVideoElement;
         
         if (videoElement) {
@@ -327,7 +352,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       console.log('ConvertAI: Limpando useEffect principal do ConvertAI.');
       
       // Remover script de forma segura
-      const scriptToRemove = document.getElementById('scr_6845f57d2f8fb6874f259443');
+      const scriptToRemove = document.getElementById(scriptId);
       if (scriptToRemove && scriptToRemove.parentNode) {
         try {
           scriptToRemove.parentNode.removeChild(scriptToRemove);
@@ -348,7 +373,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         }
       }
     };
-  }, [useConvertAI, onVideoEnd, hasStarted]); // Dependências para o setup principal do ConvertAI
+  }, [useConvertAI, onVideoEnd, hasStarted, divId, scriptId, scriptUrl, playerId]); // Dependências para o setup principal do ConvertAI
 
   // Debug dos estados
   useEffect(() => {
@@ -372,7 +397,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       
       if (useConvertAI) {
         // Para ConvertAI player
-        const syncPlayer = document.querySelector('#vid_6845f57d2f8fb6874f259443')
+        const syncPlayer = document.querySelector(`#${divId}`)
         const syncVideo = syncPlayer?.querySelector('video') as HTMLVideoElement
         if (syncVideo) {
           syncVideo.volume = volume
@@ -389,7 +414,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         
         // Tentar também via API do ConvertAI se disponível
         if ((window as any).smartplayer && (window as any).smartplayer.instances) {
-          const instance = (window as any).smartplayer.instances['6845f57d2f8fb6874f259443']
+          const instance = (window as any).smartplayer.instances[playerId!]
           if (instance && instance.setVolume) {
             instance.setVolume(volume)
             console.log(`Volume ConvertAI (API) sincronizado para: ${Math.round(volume * 100)}%`)
@@ -409,7 +434,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         console.log(`Volume não-ConvertAI (elemento HTML) sincronizado para: ${Math.round(volume * 100)}%`)
       }
     }
-  }, [volume, currentVolume, useConvertAI])
+  }, [volume, currentVolume, useConvertAI, divId, playerId])
 
   // Prevenir teclas e ações que podem pausar o vídeo
   useEffect(() => {
@@ -456,7 +481,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
 
     // Para ConvertAI, adiciona listener ao elemento video interno
-    const player = document.querySelector('#vid_6845f57d2f8fb6874f259443')
+    const player = document.querySelector(`#${divId}`)
     const video = player?.querySelector('video') as HTMLVideoElement
     if (video) {
       video.addEventListener("ended", handleVideoEnded)
@@ -466,7 +491,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         video.removeEventListener("ended", handleVideoEnded)
       }
     }
-  }, [onVideoEnd, isEnded])
+  }, [onVideoEnd, isEnded, divId])
 
   // Detectar quando o usuário sai/volta da aba/navegador
   useEffect(() => {
@@ -482,7 +507,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         
         setTimeout(() => {
           // Para ConvertAI player
-          const player = document.querySelector('#vid_6845f57d2f8fb6874f259443')
+          const player = document.querySelector(`#${divId}`)
           const video = player?.querySelector('video') as HTMLVideoElement
           
           if (video && video.paused) {
@@ -517,7 +542,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           
           // Tentar também via API do ConvertAI
           if ((window as any).smartplayer && (window as any).smartplayer.instances) {
-            const instance = (window as any).smartplayer.instances['6845f57d2f8fb6874f259443']
+            const instance = (window as any).smartplayer.instances[playerId!]
             if (instance && instance.play) {
               instance.play()
               console.log('ConvertAI: Tentativa de retomar via ConvertAI API')
@@ -545,13 +570,21 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       window.removeEventListener('focus', handleVisibilityChange)
       window.removeEventListener('blur', () => {})
     }
-  }, [hasStarted, currentVolume])
+  }, [hasStarted, currentVolume, divId, playerId])
+
+  if (!divId || !scriptUrl || !playerId) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-black text-white">
+        Erro: Configuração do player de vídeo inválida. Verifique os dados no painel de administração.
+      </div>
+    )
+  }
 
   // Renderização para ConvertAI player (todos os dispositivos)
   return (
     <div className="relative h-full w-full bg-gray-900">
       <div 
-        id="vid_6845f57d2f8fb6874f259443" 
+        id={divId} 
         style={{ 
           position: 'relative', 
           width: '100%', 
@@ -565,7 +598,20 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           }
         }}
       >
-        {/* Deixar vazio para o ConvertAI criar seus próprios elementos */}
+        {!hasStarted && (
+          <>
+            <img 
+              id={thumbId}
+              src={imageUrl}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
+              alt="thumbnail" 
+            />
+            <div 
+              id={`backdrop_${playerId}`} 
+              style={{ WebkitBackdropFilter: 'blur(5px)', backdropFilter: 'blur(5px)', position: 'absolute', top: 0, height: '100%', width: '100%' }}
+            ></div>
+          </>
+        )}
         
         {/* Overlay CONDICIONAL para impedir pause do vídeo - só aparece APÓS o vídeo iniciar e deixa o play button acessível */}
         {hasStarted && (

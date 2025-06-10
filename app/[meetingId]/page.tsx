@@ -23,7 +23,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ meetin
     // Check if meeting exists
     const { data: meetings, error } = await supabaseServer
       .from("meetings")
-      .select("meeting_id, status, video_url, created_at")
+      .select("*")
       .eq("meeting_id", meetingId)
 
     if (error) {
@@ -31,7 +31,6 @@ export default async function MeetingPage({ params }: { params: Promise<{ meetin
       return (
         <JoinMeeting
           meetingId={meetingId}
-          videoUrl="https://mhvzjal0ig61abwu.public.blob.vercel-storage.com/Amanda-QQLE8o1Zw9BaYtLwXmBoIBUToihnWY.mp4"
         />
       )
     }
@@ -54,20 +53,19 @@ export default async function MeetingPage({ params }: { params: Promise<{ meetin
 
     const meeting = meetings[0]
 
-    // If meeting is ended, show the meeting ended page
-    if (meeting.status === "ended") {
+    // If meeting is ended or being watched, show the meeting ended page
+    if (meeting.status === "ended" || meeting.status === "watching") {
       return <MeetingEnded meetingId={meetingId} />
     }
 
     // If meeting is active, show the join meeting page
-    return <JoinMeeting meetingId={meetingId} videoUrl={meeting.video_url} />
+    return <JoinMeeting meetingId={meetingId} />
   } catch (error) {
     console.error("Error in meeting page:", error)
     // Provide a fallback experience instead of redirecting
     return (
       <JoinMeeting
         meetingId={meetingId}
-        videoUrl="https://mhvzjal0ig61abwu.public.blob.vercel-storage.com/Amanda-QQLE8o1Zw9BaYtLwXmBoIBUToihnWY.mp4"
       />
     )
   }

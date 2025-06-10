@@ -25,6 +25,6 @@ export const getSupabaseBrowser = () => {
 export const mockMeetingData = {
   meeting_id: "mock-meeting",
   status: "active",
-  video_url: "https://mhvzjal0ig61abwu.public.blob.vercel-storage.com/Amanda-QQLE8o1Zw9BaYtLwXmBoIBUToihnWY.mp4",
+  video_url: "",
   created_at: new Date().toISOString(),
 }

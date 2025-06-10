@@ -5,74 +5,96 @@ import { useRouter, useSearchParams } from "next/navigation"
 import MeetingRoom from "@/components/meeting-room"
 import LoadingScreen from "@/components/loading-screen"
 import { getSupabaseBrowser } from "@/lib/supabase"
+import { Meeting } from "@/components/admin-panel"
 
 export default function RoomPage({ params }: { params: Promise<{ meetingId: string }> }) {
   const { meetingId } = use(params)
   const router = useRouter()
   const searchParams = useSearchParams()
   const userName = searchParams.get("name")
-  const videoUrl = searchParams.get("videoUrl")
   const [isLoading, setIsLoading] = useState(true)
+  const [meetingData, setMeetingData] = useState<Meeting | null>(null)
   const [lastPosition, setLastPosition] = useState(0)
 
   useEffect(() => {
-    if (!userName || !videoUrl) {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      const confirmationMessage = "Caso feche a reunião, ela será encerrada automaticamente.";
+      if (meetingId) {
+        const data = JSON.stringify({ meetingId });
+        navigator.sendBeacon('/api/update-status-on-exit', data);
+      }
+      // Padrão para a maioria dos navegadores.
+      // Note que a mensagem personalizada pode não ser exibida.
+      event.returnValue = confirmationMessage; 
+      return confirmationMessage; // Para navegadores mais antigos.
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [meetingId]);
+
+  useEffect(() => {
+    if (!userName) {
       router.push(`/${meetingId}`)
       return
     }
 
-    // Fetch last video position for this user and check meeting status
-    const fetchLastPosition = async () => {
+    const fetchMeetingData = async () => {
       const supabase = getSupabaseBrowser()
-
-      if (supabase) {
-        try {
-          // Check if meeting is still active
-          const { data: meeting } = await supabase
-            .from("meetings")
-            .select("status")
-            .eq("meeting_id", meetingId)
-            .single()
-
-          if (meeting && meeting.status === "ended") {
-            // If meeting is ended, redirect to meeting page
-            router.push(`/${meetingId}`)
-            return
-          }
-
-          // Mark the meeting as ended as soon as the user joins the room
-          const { error: updateError } = await supabase.from("meetings").update({ status: "ended" }).eq("meeting_id", meetingId)
-          if (updateError) {
-            console.error("Error updating meeting status:", updateError)
-            // Handle error appropriately
-          }
-
-          // Get last video position
-          // const { data } = await supabase
-          //   .from("participants")
-          //   .select("last_video_position")
-          //   .eq("meeting_id", meetingId)
-          //   .eq("name", userName)
-          //   .single()
-
-          // if (data && typeof data.last_video_position === 'number') {
-          //   setLastPosition(data.last_video_position)
-          // }
-        } catch (error) {
-          console.error("Error fetching data:", error)
-        }
+      if (!supabase) {
+        console.error("Supabase client not available")
+        setIsLoading(false)
+        router.push("/meeting-not-found")
+        return
       }
 
-      // Simulate loading for 5 seconds
-      setTimeout(() => {
-        setIsLoading(false)
-      }, 5000)
+      try {
+        const { data, error } = await supabase
+          .from("meetings")
+          .select("*")
+          .eq("meeting_id", meetingId)
+          .single()
+
+        if (error || !data) {
+          console.error("Error fetching meeting data or data not found:", error)
+          router.push("/meeting-not-found")
+          return
+        }
+        
+        if (data.status === "ended") {
+          router.push(`/${meetingId}?error=ended`)
+          return
+        }
+        
+        setMeetingData(data as unknown as Meeting)
+
+        // Mark the meeting as watching
+        if (data.status === "active") {
+            const { error: updateError } = await supabase.from("meetings").update({ status: "watching" }).eq("meeting_id", meetingId)
+            if (updateError) {
+                console.error("Error updating meeting status to watching:", updateError)
+                // Opcional: lidar com o erro, talvez com um toast
+            }
+        }
+        
+      } catch (error) {
+        console.error("Exception fetching data:", error)
+        router.push("/meeting-not-found")
+      } finally {
+        // Simulate loading for 5 seconds to show the loading screen
+        setTimeout(() => {
+          setIsLoading(false)
+        }, 5000)
+      }
     }
 
-    fetchLastPosition()
-  }, [userName, videoUrl, meetingId])
+    fetchMeetingData()
+  }, [userName, meetingId, router])
 
-  if (isLoading) {
+  if (isLoading || !meetingData) {
     return <LoadingScreen userName={userName || ""} />
   }
 
@@ -80,7 +102,10 @@ export default function RoomPage({ params }: { params: Promise<{ meetingId: stri
     <MeetingRoom
       meetingId={meetingId}
       userName={userName || ""}
-      videoUrl={videoUrl || ""}
+      divId={meetingData.div_id}
+      thumbId={meetingData.thumb_id}
+      imageUrl={meetingData.src_images_url}
+      scriptUrl={meetingData.src_scripts_url}
       initialPosition={lastPosition}
     />
   )
