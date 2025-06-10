@@ -551,7 +551,7 @@ export default function AdminPanel() {
         description: (
           <React.Fragment>
             <div className="flex items-center text-lg font-semibold mb-1">
-              <span className="p-1 rounded-md border bg-red-100 border-red-400 text-red-600 mr-2 inline-flex items-center justify-center">
+              <span className="p-1 rounded-md border bg-amber-100 border-amber-400 text-amber-600 mr-2 inline-flex items-center justify-center">
                 <PowerOff className="h-5 w-5" />
               </span>
               Reunião Encerrada
@@ -559,7 +559,6 @@ export default function AdminPanel() {
             {`A reunião ${meetingId} foi encerrada com sucesso.`}
           </React.Fragment>
         ),
-        variant: "destructive",
       });
     } else {
       console.error("Erro ao encerrar reunião:", error)
@@ -756,7 +755,7 @@ export default function AdminPanel() {
         <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-sky-100 border border-sky-500 rounded-lg shadow-md">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <Button onClick={createMeeting} className="bg-sky-500 hover:bg-sky-600 text-white border border-sky-700">
+                    <Button onClick={createMeeting} className="bg-sky-500 hover:bg-sky-600 text-white border border-sky-500 shadow-inner shadow-sky-200">
                       <PlusCircle className="mr-2 h-5 w-5" /> Criar Reunião
                     </Button>
                     <div className="flex items-center gap-3">
@@ -803,7 +802,7 @@ export default function AdminPanel() {
                     </div>
                 </div>
                 <CollapsibleTrigger asChild>
-                    <Button variant="ghost" className="flex items-center justify-center gap-2 text-sky-700 hover:bg-sky-200 border-2 border-sky-200 hover:border-sky-300 md:border-0 p-2.5 md:p-2 rounded-lg">
+                    <Button variant="ghost" className="flex items-center justify-center gap-2 text-sky-700 hover:bg-sky-200 border-2 border-sky-300 hover:border-sky-500 md:border-0 p-2.5 md:p-2 rounded-lg shadow-inner shadow-sky-300 hover:text-sky-800 hover:shadow-sky-400">
                         <Settings className={cn("h-5 w-5 transition-transform duration-300", isSettingsOpen && "rotate-90")} />
                         <span>Mudar script do vídeo</span>
                     </Button>
@@ -923,13 +922,13 @@ export default function AdminPanel() {
                 </SelectItem>
                 <SelectItem value="Assistindo" className="hover:bg-sky-200 flex items-center">
                   <div className="flex items-center gap-2">
-                    <Eye className="h-3 w-3 text-amber-600" />
+                    <Eye className="h-3 w-3 text-blue-700" />
                     Assistindo
                   </div>
                 </SelectItem>
                 <SelectItem value="Encerrado" className="hover:bg-sky-200 flex items-center">
                   <div className="flex items-center gap-2">
-                    <PowerOff className="h-3 w-3 text-red-600" />
+                    <PowerOff className="h-3 w-3 text-amber-600" />
                     Encerrado
                   </div>
                 </SelectItem>
@@ -1156,7 +1155,7 @@ export default function AdminPanel() {
               </Button>
               <Button
                 onClick={() => openBulkActionDialog("end")}
-                className="bg-red-200 hover:bg-red-300 text-red-800 border border-red-600 w-full sm:w-auto"
+                className="bg-amber-200 hover:bg-amber-300 text-amber-800 border border-amber-500 w-full sm:w-auto"
               >
                 <PowerOff className="mr-2 h-5 w-5" /> Encerrar Selecionadas
               </Button>
@@ -1223,9 +1222,9 @@ export default function AdminPanel() {
                   className={cn(
                     "border-b-sky-200 hover:bg-sky-50",
                     // Cores de fundo baseadas no status
-                    meeting.status === "Ativado" ? "bg-green-50" :
-                    meeting.status === "Assistindo" ? "bg-amber-50 opacity-90" :
-                    meeting.status === "Encerrado" ? "bg-red-50 opacity-90" : ""
+                    meeting.status === "Ativado" ? "bg-green-100 opacity-90" :
+                    meeting.status === "Assistindo" ? "bg-blue-100 opacity-90" :
+                    meeting.status === "Encerrado" ? "bg-amber-50 opacity-100" : ""
                   )}
                 >
                   <TableCell className="text-center px-1 py-2 sm:px-2">
@@ -1245,9 +1244,9 @@ export default function AdminPanel() {
                               {meeting.status === "Ativado" ? (
                                 <div className="w-1 h-3 rounded-sm bg-green-500" />
                               ) : meeting.status === "Assistindo" ? (
-                                <div className="w-1 h-3 rounded-sm bg-amber-500" />
+                                <div className="w-1 h-3 rounded-sm bg-blue-600" />
                               ) : (
-                                <div className="w-1 h-3 rounded-sm bg-red-500" />
+                                <div className="w-1 h-3 rounded-sm bg-amber-500" />
                               )}
                             </TooltipTrigger>
                             <TooltipContent className="bg-gray-800 text-white border-gray-900">
@@ -1276,8 +1275,8 @@ export default function AdminPanel() {
                           meeting.status === "Ativado"
                             ? "bg-green-100 text-green-700 border-green-500"
                             : meeting.status === "Assistindo"
-                            ? "bg-amber-100 text-amber-700 border-amber-500"
-                            : "bg-red-100 text-red-700 border-red-500"
+                            ? "bg-blue-200 text-blue-800 border-blue-600"
+                            : "bg-amber-100 text-amber-700 border-amber-500"
                         }`}
                       >
                         {meeting.status === "Ativado" ? (
@@ -1297,44 +1296,40 @@ export default function AdminPanel() {
                   <TableCell className="text-right px-2 py-2 sm:px-4 sm:pr-4">
                     <div className="flex justify-end space-x-2">
                       <Button
-                        variant="outline"
-                        className="h-9 w-9 p-0 flex items-center justify-center text-blue-600 border-blue-500 hover:bg-blue-100 hover:text-blue-700 sm:w-auto sm:px-3"
+                        className="h-9 w-9 p-0 flex items-center justify-center text-blue-700 bg-blue-200 border-blue-600 hover:bg-blue-300 hover:text-blue-800 sm:w-32 sm:px-3"
                         onClick={() => window.open(`/${meeting.meeting_id}`, '_blank')}
                         title="Visualizar Reunião"
                       >
-                        <ExternalLink className="h-4 w-4" />
-                        <span className="hidden sm:ml-2 sm:inline">Visualizar</span>
+                        <ExternalLink className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Visualizar</span>
                       </Button>
                       {meeting.status === "Ativado" ? (
                         <Button
-                          variant="outline"
-                          className="h-9 w-9 p-0 flex items-center justify-center text-red-600 border-red-500 hover:bg-red-100 hover:text-red-700 sm:w-32 sm:px-3"
+                          className="h-9 w-9 p-0 flex items-center justify-center text-amber-700 bg-amber-200 border-amber-500 hover:bg-amber-300 hover:text-amber-800 sm:w-32 sm:px-3"
                           onClick={() => endMeeting(meeting.meeting_id)}
                           title="Encerrar Reunião"
                         >
-                          <PowerOff className="h-4 w-4" />
-                          <span className="hidden sm:ml-1 sm:inline">Encerrar</span>
+                          <PowerOff className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Encerrar</span>
                         </Button>
                       ) : (
                          <Button
-                          variant="outline"
-                          className="h-9 w-9 p-0 flex items-center justify-center text-green-600 border-green-500 hover:bg-green-100 hover:text-green-700 sm:w-32 sm:px-3"
+                          className="h-9 w-9 p-0 flex items-center justify-center text-green-700 bg-green-200 border-green-600 hover:bg-green-300 hover:text-green-800 sm:w-32 sm:px-3"
                           onClick={() => activateMeeting(meeting.meeting_id)}
                           title="Ativar Reunião"
                         >
-                          <Power className="h-4 w-4" />
-                          <span className="hidden sm:ml-1 sm:inline">Ativar</span>
+                          <Power className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Ativar</span>
                         </Button>
                       )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
-                            variant="destructive"
-                            className="h-9 w-9 p-0 flex items-center justify-center text-red-600 bg-red-100 border-red-500 hover:bg-red-200 hover:text-red-700 sm:w-auto sm:px-3"
+                            className="h-9 w-9 p-0 flex items-center justify-center text-red-700 bg-red-200 border-red-500 hover:bg-red-300 hover:text-red-800 sm:w-32 sm:px-3"
                             title="Excluir Reunião"
                           >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="hidden sm:ml-2 sm:inline">Excluir</span>
+                            <Trash2 className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Excluir</span>
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent className="bg-white border-red-500">
@@ -1376,64 +1371,64 @@ export default function AdminPanel() {
         <AlertDialogContent className={`p-0 rounded-lg overflow-hidden ${
           bulkActionType === "delete" ? "border-gray-500" : 
           bulkActionType === "activate" ? "border-green-500" : 
-          bulkActionType === "end" ? "border-red-500" : "border-sky-500" 
+          bulkActionType === "end" ? "border-amber-500" : "border-sky-500" 
         } ${ 
           bulkActionType === "delete" ? "bg-gray-50" :
           bulkActionType === "activate" ? "bg-green-50" :
-          bulkActionType === "end" ? "bg-red-50" : "bg-sky-50"
+          bulkActionType === "end" ? "bg-amber-50" : "bg-sky-50"
         }`}>
           <div className="p-6 pb-4">
             <AlertDialogHeader className={`pb-0 border-none`}>
               <AlertDialogTitle className={`flex items-center ${
                 bulkActionType === 'activate' ? 'text-green-800' :
-                bulkActionType === 'end' ? 'text-red-800' :
+                bulkActionType === 'end' ? 'text-amber-800' :
                 bulkActionType === 'delete' ? 'text-gray-800' : 'text-sky-700'
               }`}>
                 <span className={`mr-2 p-1.5 rounded-md border ${ 
                   bulkActionType === 'activate' ? 'bg-green-100 border-green-300 text-green-700' :
-                  bulkActionType === 'end' ? 'bg-red-100 border-red-300 text-red-700' :
+                  bulkActionType === 'end' ? 'bg-amber-100 border-amber-300 text-amber-700' :
                   bulkActionType === 'delete' ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-sky-100 border-sky-300 text-sky-700'
                 }`}>
                   {bulkActionType === 'activate' && <Power className="h-5 w-5" />}
                   {bulkActionType === 'end' && <PowerOff className="h-5 w-5" />}
                   {bulkActionType === 'delete' && <Trash2 className="h-5 w-5" />}
                 </span>
-                Confirmar {
-                  bulkActionType === "activate" ? "Ativação" :
-                  bulkActionType === "end" ? "Encerramento" :
-                  bulkActionType === "delete" ? "Exclusão" : ""
-                } de Reuniões
+                { bulkActionType === 'activate' ? 'Ativar Reuniões Selecionadas' : 
+                  bulkActionType === 'end' ? 'Encerrar Reuniões Selecionadas' : 
+                  bulkActionType === 'delete' ? 'Excluir Reuniões Selecionadas' : 'Ação em Massa' }
               </AlertDialogTitle>
               <AlertDialogDescription className="text-gray-700 pt-3">
                 Você selecionou <strong className={`${ 
                   bulkActionType === 'activate' ? 'text-green-700' :
-                  bulkActionType === 'end' ? 'text-red-700' :
+                  bulkActionType === 'end' ? 'text-amber-700' :
                   bulkActionType === 'delete' ? 'text-gray-700' : 'text-sky-700'
                 }`}>{selectedMeetings.length}</strong> {selectedMeetings.length === 1 ? "reunião selecionada" : "reuniões selecionadas"}. 
                 {bulkActionType === "delete" 
-                  ? " Esta ação não pode ser desfeita e excluirá permanentemente as reuniões selecionadas."
-                  : ` Tem certeza que deseja ${bulkActionType === "activate" ? "ativar" : "encerrar"} ${selectedMeetings.length === 1 ? "a reunião selecionada" : "as reuniões selecionadas"}?`}
+                  ? "Esta ação é irreversível. Todas as informações das reuniões selecionadas serão permanentemente excluídas." 
+                  : bulkActionType === "activate"
+                  ? "As reuniões selecionadas serão marcadas como 'Ativado'."
+                  : "As reuniões selecionadas serão marcadas como 'Encerrado'."}
               </AlertDialogDescription>
             </AlertDialogHeader>
           </div>
-          <AlertDialogFooter className="px-6 py-4 bg-slate-50 border-t rounded-b-lg">
-            <AlertDialogCancel className="border-gray-400 text-gray-700 hover:bg-gray-100 flex items-center">
-              <Ban className="mr-2 h-4 w-4" /> Cancelar
+          <AlertDialogFooter className="bg-white/50 px-6 py-4 border-t border-gray-200">
+            <AlertDialogCancel asChild>
+              <Button variant="outline" className="border-gray-400 text-gray-700 hover:bg-gray-100">Cancelar</Button>
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkAction}
               className={`flex items-center ${
-                bulkActionType === "delete" ? "bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-600" :
+                bulkActionType === "delete" ? "bg-red-100 hover:bg-red-200 text-red-700 border border-red-500" :
                 bulkActionType === "activate" ? "bg-green-200 hover:bg-green-300 text-green-800 border border-green-600" :
-                "bg-red-200 hover:bg-red-300 text-red-800 border border-red-600"
+                "bg-amber-200 hover:bg-amber-300 text-amber-800 border border-amber-500"
               }`}
             >
               {bulkActionType === 'activate' && <Power className="mr-2 h-4 w-4" />}
               {bulkActionType === 'end' && <PowerOff className="mr-2 h-4 w-4" />}
               {bulkActionType === 'delete' && <Trash2 className="mr-2 h-4 w-4" />}
-              Confirmar {bulkActionType === "activate" ? "Ativação" :
-                         bulkActionType === "end" ? "Encerramento" :
-                         bulkActionType === "delete" ? "Exclusão" : "Ação"}
+              { bulkActionType === 'activate' ? 'Confirmar Ativação' : 
+                bulkActionType === 'end' ? 'Confirmar Encerramento' :
+                bulkActionType === 'delete' ? 'Confirmar Exclusão' : 'Confirmar' }
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
